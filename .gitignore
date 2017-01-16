@@ -1,0 +1,14 @@
+# LaTeX artifacts
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.log
+*.log
+*.lot
+*.lof
+*.out
+*.pdf
+*.run.xml
+*.synctex.gz
+*.toc
