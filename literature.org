@@ -1,0 +1,98 @@
+#+TITLE: Relevant Literature
+#+AUTHOR: Marten Lienen
+#+STARTUP: showall
+
+Shorthands in this document like "" all refer to literature listed in
+doc/bibliography.bib.
+
+* EVO16
+
+6-DOF tracking in real time that only uses event data.
+
+* MuegglerRGDS16
+
+Ideas on building an event-based VO benchmark.
+
+* Tan15
+
+They give recommendations on creating NV datasets that are derived from years of
+experience creating CV datasets. The gist is the following.
+
+- Jittering to get free training data
+- Datasets should be as realistic as possible
+- Be aware of biases in your data
+- Plan your data collection efforts thoroughly
+- Benchmarks are not an end in and of itself. They are just means to compare
+  algorithms. You actually want to perform well in the world outside.
+- Rigorously define evaluation protocols to ensure comparability
+- Results have to be reproducible, so release data as well as code
+- Concentrate on areas where NV is superior to CV, e.g. mobile agents
+- Datasets have to be representative of actual application
+- Record NV and CV data in parallel, i.e. use both neuromorphic and video
+  cameras
+
+* CV2NV15
+
+Convert MNIST and Caltech101 datasets to neuromorphic recordings with a
+neuromorphic camera that emulates saccades as seen in human eyes. They also run
+basic recognition algorithms on the event data, namely SKIM and HFIRST.
+
+- Claim that NV is best suited for applications with a moving sensor
+- NV sensors are also triggered by illumination changes!
+
+* Visnav16
+
+They record a dataset for optical flow estimation with a DAVIS and a Kinect
+simultaneously and also describe the camera calibration process for a DAVIS and
+how to apply it to a DVS. The alignment between DAVIS and Kinect coordinates is
+also explained in great detail.
+
+* Optflow16
+
+This is an evaluation of Lukas-Kanade and Local-Plane-Fit methods for optical
+flow estimation that were adapted for event-based vision. They go into great
+detail talking about quite "engineery" aspects like noise reduction. They also
+record their own dataset by pure camera rotation because that lets them acquire
+ground-truth easily with a attached IMU sensor.
+
+They talk about another paper using biologically inspired filter-banks.
+
+* Hu16
+
+They transformed three traditional object and action recognition datasets into
+event-based datasets with the usual camera-in-front-of-screen
+setup. Interestingly, they remote-control jAER with UDP packets for the actual
+recording.
+
+* SpikeBench16
+
+The authors convert MNIST into a spiking dataset by four different means that
+focus on different aspects of comparison and benchmarking. Their main finding is
+that SNNs running on SpiNNaker show acceptable performance with reduced energy
+consumption.
+
+* DeepLearning16
+
+They perform gesture recognition with binary gradient cameras. However, their
+cameras are different from a DVS insofar that they record gradient images,
+i.e. whole images that have gradient information as pixel values. Also, their
+camera prototype records spatial gradients instead of temporal ones like the
+DVS.
+
+* Molchanov2015hand
+
+In this earlier work, the NVIDIA people run two CNNs on fixed-length video clips
+of gestures. They employ an RGB as well as a depth channel and heavy use of data
+augmentation to enhance the generalizability of their networks. They benchmark
+their methon on the VIVA dataset.
+
+* Molchanov16
+
+They create their own dataset for gesture recognition. Standing out is the fact
+that they use an RGBD camera as well as two IR cameras for a stereo IR
+signal. For the actual classification, they use a combination of a CNN to
+extract feature vectors on which an RNN operates. *Interesting* for event-based
+recordings because they also require timeline analysis.
+
+This paper has a list of 20 gestures that they have recorded as well as links to
+lots of other datasets.
