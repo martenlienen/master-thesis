@@ -1,0 +1,63 @@
+#+TITLE: Recording a Neuromorphic Dataset for Safe Driving
+#+AUTHOR: Marten Lienen
+#+STARTUP: showall
+#+BIBLIOGRAPHY: doc/bibliography plain
+
+* General Concerns
+
+- In a simulator or real car?
+- How many subjects? 20
+- Do we need different lighting conditions? DVS is insensitive towards static
+  brightness.
+  - Flashing lights like in an autobahn tunnel. This dynamic lighting will
+    generate lots of activity in the event stream.
+- Should we record scenes with partial occlusion through glasses, bottles, etc.?
+- Calibration
+- Does the DVS have a camera/intrinsic matrix?
+- Not too easy, but not too difficult at the same time
+- Right/left hand? Driver/passenger?
+- Recording an RGB(D)-video simultaneously?
+- libfreenect for recording from a Kinect
+- Long continouos recording, then extract clips of individual gestures
+
+* Datasets
+
+** Driver Drowsiness
+
+** Gaze Estimation
+
+** Gesture Recognition
+
+* Recording Program
+
+The options for recording from the emDVS sensor are
+- remote-controlling jAER with UDP packets
+- or writing our own recording with libcaer/cAER.
+
+It should have a window showing instructions for the subjects, i.e.
+- a video demonstrating the motion or gesture to perform,
+- a 2 second countdown.
+
+** UI
+
+*** Instructor
+
+The instructor window will be displayed on a screen positioned in front of the
+subject. Here it will play videos showing the gestures to be performed.
+
+*** Controller
+
+This window offers controls to start/stop recording and enter meta data.
+
+*** Feedback
+
+The feedback window replays the video streams as they are recorded so that a
+supervisor can control the quality of recordings.
+
+** Libraries
+
+The program will be written in C++ and use the following libraries.
+
+- *wxwidgets* for the GUI. They also have a built-in media player to play the
+  instructional videos.
+- *libcaer* for recording from the meDVS
