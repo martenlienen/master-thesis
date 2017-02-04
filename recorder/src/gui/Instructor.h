@@ -1,3 +1,6 @@
+#ifndef RECORDER_GUI_INSTRUCTOR_H_
+#define RECORDER_GUI_INSTRUCTOR_H_
+
 #include <wx/frame.h>
 #include <wx/mediactrl.h>
 
@@ -14,3 +17,5 @@ private:
 };
 }
 }
+
+#endif // RECORDER_GUI_INSTRUCTOR_H_

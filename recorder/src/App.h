@@ -1,6 +1,9 @@
-#include <memory>
+#ifndef RECORDER_APP_H_
+#define RECORDER_APP_H_
 
 #include <wx/wx.h>
+
+#include "gui/Controller.h"
 
 namespace recorder {
 
@@ -9,8 +12,8 @@ public:
   virtual bool OnInit();
 
 private:
-  std::unique_ptr<wxFrame> controller;
-  std::unique_ptr<wxFrame> instructor;
-  std::unique_ptr<wxFrame> feedback;
+  gui::Controller* controller;
 };
 }
+
+#endif // RECORDER_APP_H_
