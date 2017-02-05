@@ -4,6 +4,7 @@
 #include <atomic>
 #include <cstdint>
 #include <mutex>
+#include <queue>
 
 #include <opencv2/core/mat.hpp>
 
@@ -17,6 +18,8 @@ public:
   std::atomic<bool> stopped{false};
   std::mutex last_frame_mutex;
   cv::Mat last_frame;
+  std::mutex frames_mutex;
+  std::queue<cv::Mat> frames;
 
   static uint32_t getNumCameras();
 

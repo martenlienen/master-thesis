@@ -18,6 +18,7 @@ public:
 
 private:
   uint32_t camera_id = 0;
+  std::string path;
   bool recording = false;
   std::unique_ptr<recorder::capture::OpenCVCapture> cv_capture;
   gui::Feedback *feedback;

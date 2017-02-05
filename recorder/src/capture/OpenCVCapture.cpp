@@ -48,6 +48,11 @@ void OpenCVCapture::grabFrames() {
       std::lock_guard<std::mutex> guard(this->last_frame_mutex);
       this->last_frame = m;
     }
+
+    {
+      std::lock_guard<std::mutex> guard(this->frames_mutex);
+      this->frames.push(m);
+    }
   }
 }
 }
