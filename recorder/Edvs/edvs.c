@@ -538,8 +538,7 @@ ssize_t edvs_device_streaming_read(edvs_device_streaming_t *s,
       (s->device_timestamp_mode > 3) ? 0 : s->device_timestamp_mode;
   const unsigned char cHighBitMask = 0x80;   // 10000000
   const unsigned char cLowerBitsMask = 0x7F; // 01111111
-  const unsigned int cNumBytesTimestamp =
-      (s->device_timestamp_mode == 0) ? 0 : (s->device_timestamp_mode + 1);
+  const unsigned int cNumBytesTimestamp = s->device_timestamp_mode;
   const uint64_t cTimestampLimit = timestamp_limit(timestamp_mode);
   const unsigned int cNumBytesPerEvent = 2 + cNumBytesTimestamp;
   const unsigned int cNumBytesPerSpecial = 2 + cNumBytesTimestamp + 1 + 16;
