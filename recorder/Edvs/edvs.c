@@ -311,8 +311,8 @@ edvs_device_streaming_t *edvs_device_streaming_open(edvs_device_t *dh,
     return 0;
   sleep_ms(200);
   // timestamp mode
-  s->device_timestamp_mode = 0;
-  printf("%d\n", s->device_timestamp_mode);
+
+  printf("Timestamp mode: %d\n", s->device_timestamp_mode);
   if (s->device_timestamp_mode == 1) {
     if (edvs_device_write_str(dh, "!E1\n") != 0)
       return 0;
