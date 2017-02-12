@@ -3,7 +3,7 @@
 
 #include <wx/wx.h>
 
-#include "gui/Controller.h"
+#include "gui/Setup.h"
 
 namespace recorder {
 
@@ -12,7 +12,7 @@ public:
   virtual bool OnInit();
 
 private:
-  gui::Controller* controller;
+  gui::Setup* setup;
 };
 }
 

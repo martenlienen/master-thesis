@@ -1,14 +1,10 @@
-#include <algorithm>
 #include <iostream>
-#include <string>
-#include <vector>
+#include <utility>
 
-#include <opencv2/videoio.hpp>
+#include <boost/filesystem.hpp>
 #include <wx/button.h>
-#include <wx/choice.h>
-#include <wx/filepicker.h>
+#include <wx/msgdlg.h>
 #include <wx/sizer.h>
-#include <wx/stattext.h>
 
 #include "Controller.h"
 
@@ -16,70 +12,200 @@ namespace recorder {
 
 namespace gui {
 
-Controller::Controller() : wxFrame(NULL, wxID_ANY, "Controller") {
-  auto num_cameras = capture::OpenCVCapture::getNumCameras();
-  auto camera_choices = wxArrayString();
-  for (auto i = 0; i < num_cameras; i++) {
-    camera_choices.Add(std::to_string(i));
-  }
+Controller::Controller(
+    std::string subject, std::string directory,
+    std::vector<std::tuple<std::string, std::string, std::string>> gestures,
+    std::unique_ptr<agents::DVSAgent> dvs_agent,
+    std::unique_ptr<agents::OpenCVAgent> cv_agent)
+    : wxFrame(nullptr, wxID_ANY, "Controller"), recording(false),
+      num_gestures(gestures.size()), current(0), subject(subject),
+      directory(directory), gestures(gestures), dvs_agent(std::move(dvs_agent)),
+      cv_agent(std::move(cv_agent)), dvs_frame(nullptr), cv_frame(nullptr) {
+  this->counter_label = new wxStaticText(this, wxID_ANY, "", wxDefaultPosition,
+                                         wxDefaultSize, wxALIGN_RIGHT);
+  this->gesture_label = new wxStaticText(this, wxID_ANY, "");
+  this->record_button = new wxButton(this, wxID_ANY, "Start");
+  auto replay_button = new wxButton(this, wxID_ANY, "Replay");
+  auto restart_button = new wxButton(this, wxID_ANY, "Restart DVS");
+  auto prev_button = new wxButton(this, wxID_ANY, "<");
+  auto next_button = new wxButton(this, wxID_ANY, ">");
 
-  // Create controls
-  auto camera_label = new wxStaticText(this, wxID_ANY, "Camera");
-  auto camera_choice = new wxChoice(this, wxID_ANY, wxDefaultPosition,
-                                    wxDefaultSize, camera_choices);
-  auto file_label = new wxStaticText(this, wxID_ANY, "File");
-  auto file_picker = new wxFilePickerCtrl(
-      this, wxID_ANY, wxEmptyString, "Where to save video?",
-      wxFileSelectorDefaultWildcardStr, wxDefaultPosition, wxDefaultSize,
-      wxFLP_USE_TEXTCTRL | wxFLP_SAVE);
-  auto go_btn = new wxButton(this, wxID_ANY, "Go");
-  camera_choice->SetSelection(0);
+  auto sizer = new wxBoxSizer(wxVERTICAL);
+  auto top_sizer = new wxBoxSizer(wxHORIZONTAL);
+  auto bottom_sizer = new wxBoxSizer(wxHORIZONTAL);
+  top_sizer->Add(this->gesture_label, wxSizerFlags().Proportion(1));
+  top_sizer->AddStretchSpacer();
+  top_sizer->Add(this->counter_label);
+  auto bottom_flags = wxSizerFlags().Center().Expand();
+  bottom_sizer->Add(prev_button, bottom_flags.Proportion(0));
+  bottom_sizer->Add(this->record_button, bottom_flags.Proportion(1));
+  bottom_sizer->Add(replay_button, bottom_flags.Proportion(1));
+  bottom_sizer->Add(restart_button, bottom_flags.Proportion(1));
+  bottom_sizer->Add(next_button, bottom_flags.Proportion(0));
+  sizer->Add(top_sizer, wxSizerFlags().Border(wxALL, 10));
+  sizer->Add(bottom_sizer, wxSizerFlags().Border(wxALL, 10));
 
-  // Arrange controls
-  auto top_sizer = new wxBoxSizer(wxVERTICAL);
-  auto form_sizer = new wxGridSizer(2, 10, 10);
-  form_sizer->Add(camera_label, wxSizerFlags().Center());
-  form_sizer->Add(camera_choice, wxSizerFlags().Center());
-  form_sizer->Add(file_label, wxSizerFlags().Center());
-  form_sizer->Add(file_picker, wxSizerFlags().Center());
-  top_sizer->Add(form_sizer, 1, wxEXPAND | wxALL, 10);
-  top_sizer->Add(go_btn, 0, wxEXPAND | wxALL, 10);
-
-  this->SetSizerAndFit(top_sizer);
+  this->SetSizerAndFit(sizer);
 
   // Set up event handling
-  camera_choice->Bind(wxEVT_CHOICE, [this](const wxCommandEvent &e) {
-    this->camera_id = e.GetInt();
+  prev_button->Bind(wxEVT_BUTTON, [this](const wxCommandEvent &e) {
+    if (this->current > 0) {
+      this->current -= 1;
+    }
+
+    if (this->recording) {
+      this->stopRecording();
+    }
+
+    this->updateLabels();
   });
-  file_picker->Bind(
-      wxEVT_FILEPICKER_CHANGED,
-      [this](const wxFileDirPickerEvent &e) { this->path = e.GetPath(); });
-  go_btn->Bind(wxEVT_BUTTON, [this](const wxCommandEvent &e) {
-    this->startRecording(this->camera_id);
+  next_button->Bind(wxEVT_BUTTON, [this](const wxCommandEvent &e) {
+    if (this->current < this->num_gestures - 1) {
+      this->current += 1;
+    }
+
+    if (this->recording) {
+      this->stopRecording();
+    }
+
+    this->updateLabels();
   });
+  this->record_button->Bind(wxEVT_BUTTON, [this](const wxCommandEvent &e) {
+    if (this->recording) {
+      this->stopRecording();
+      this->recording = false;
+    } else {
+      this->startRecording();
+      this->recording = true;
+    }
+
+    this->updateLabels();
+  });
+  restart_button->Bind(wxEVT_BUTTON, [this](const wxCommandEvent &e) {
+    if (this->recording) {
+      this->stopRecording();
+    }
+
+    auto device = this->dvs_agent->device;
+    boost::filesystem::path device_path(device);
+    if (!boost::filesystem::exists(device_path)) {
+      if (device[device.size() - 1] == '0') {
+        device = "/dev/ttyUSB1";
+      } else {
+        device = "/dev/ttyUSB0";
+      }
+    }
+
+    this->dvs_agent->stop();
+    this->dvs_agent.reset(new agents::DVSAgent());
+    this->dvs_agent->start(device);
+
+    if (this->dvs_frame) {
+      this->dvs_agent->setDisplay(this->dvs_frame->display);
+    }
+  });
+
+  this->toggleDVSFrame();
+  this->toggleOpenCVFrame();
+
+  this->updateLabels();
 }
 
-void Controller::startRecording(uint32_t camera_id) {
-  if (recording) {
-    this->cv_capture->stop();
-    this->feedback = nullptr;
-    this->recording = false;
-
-    cv::VideoWriter writer(this->path,
-                           cv::VideoWriter::fourcc('X', '2', '6', '4'), 30,
-                           cv::Size(640, 480));
-
-    while (!this->cv_capture->frames.empty()) {
-      writer << this->cv_capture->frames.front();
-      this->cv_capture->frames.pop();
-    }
+void Controller::toggleDVSFrame() {
+  if (this->dvs_frame) {
+    this->dvs_frame->Close();
+    this->dvs_frame = nullptr;
   } else {
-    this->cv_capture.reset(new capture::OpenCVCapture(camera_id));
-    this->feedback = new Feedback(*this->cv_capture);
-    this->feedback->Show();
-    this->cv_capture->run();
-    this->recording = true;
+    this->dvs_frame = new DVSFrame(this);
+    this->dvs_frame->Bind(wxEVT_CLOSE_WINDOW, [this](wxCloseEvent &e) {
+      this->dvs_agent->setDisplay(nullptr);
+      e.Skip();
+    });
+
+    this->dvs_agent->setDisplay(this->dvs_frame->display);
+
+    this->dvs_frame->Show();
   }
+}
+
+void Controller::toggleOpenCVFrame() {
+  if (this->cv_frame) {
+    this->cv_frame->Close();
+    this->cv_frame = nullptr;
+  } else {
+    this->cv_frame = new OpenCVFrame(this);
+    this->cv_frame->Bind(wxEVT_CLOSE_WINDOW, [this](wxCloseEvent &e) {
+      this->cv_agent->setDisplay(nullptr);
+      e.Skip();
+    });
+
+    this->cv_agent->setDisplay(this->cv_frame->display);
+
+    this->cv_frame->Show();
+  }
+}
+
+void Controller::startRecording() {
+  if (this->num_gestures == 0) {
+    return;
+  }
+
+  if (this->currentFileExists()) {
+    auto msg = "Do you really want to overwrite this recording?";
+    auto dlg = new wxMessageDialog(this, msg, "", wxYES_NO | wxCENTER);
+
+    if (dlg->ShowModal() != wxID_YES) {
+      return;
+    }
+  }
+
+  auto id = std::get<1>(this->gestures[this->current]);
+  boost::filesystem::path dir(this->directory);
+  dir /= this->subject;
+
+  boost::filesystem::create_directories(dir);
+
+  this->dvs_agent->startRecording((dir / (id + ".aedat")).string());
+  this->cv_agent->startRecording((dir / (id + ".mkv")).string());
+}
+
+void Controller::stopRecording() {
+  this->dvs_agent->stopRecording();
+  this->cv_agent->stopRecording();
+}
+
+void Controller::updateLabels() {
+  if (this->num_gestures > 0) {
+    auto label = std::to_string(this->current + 1) + " / " +
+                 std::to_string(this->num_gestures);
+    this->counter_label->SetLabel(label);
+
+    auto name = std::get<0>(this->gestures[this->current]);
+
+    if (this->currentFileExists()) {
+      this->gesture_label->SetLabel(name + " (exists)");
+    } else {
+      this->gesture_label->SetLabel(name);
+    }
+
+    if (this->recording) {
+      this->record_button->SetLabel("Stop Recording");
+    } else {
+      this->record_button->SetLabel("Start Recording");
+    }
+  }
+}
+
+bool Controller::currentFileExists() {
+  if (this->num_gestures == 0) {
+    return false;
+  }
+
+  auto id = std::get<1>(this->gestures[this->current]);
+  auto path =
+      boost::filesystem::path(this->directory) / this->subject / (id + ".mkv");
+
+  return boost::filesystem::exists(path);
 }
 }
 }

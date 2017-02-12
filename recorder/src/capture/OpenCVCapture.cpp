@@ -1,6 +1,3 @@
-#include <iostream>
-#include <thread>
-
 #include <opencv2/videoio.hpp>
 
 #include "OpenCVCapture.h"
@@ -26,13 +23,33 @@ uint32_t OpenCVCapture::getNumCameras() {
 
 OpenCVCapture::OpenCVCapture(uint32_t camera_id) : camera_id(camera_id) {}
 
-void OpenCVCapture::run() {
+OpenCVCapture::~OpenCVCapture() { this->stop(); }
+
+void OpenCVCapture::start() {
   this->stopped = false;
-  std::thread t(&OpenCVCapture::grabFrames, this);
-  t.detach();
+  this->thread = std::thread(&OpenCVCapture::grabFrames, this);
 }
 
-void OpenCVCapture::stop() { this->stopped = true; }
+void OpenCVCapture::stop() {
+  this->stopped = true;
+
+  if (this->thread.joinable()) {
+    this->thread.join();
+  }
+}
+
+std::vector<cv::Mat> OpenCVCapture::getFrames() {
+  std::lock_guard<std::mutex> guard(this->frames_mutex);
+  int n = this->frames.size();
+  std::vector<cv::Mat> frames(n);
+
+  for (int i = 0; i < n; i++) {
+    frames[n - i - 1] = this->frames.front();
+    this->frames.pop();
+  }
+
+  return frames;
+}
 
 void OpenCVCapture::grabFrames() {
   cv::VideoCapture cap(this->camera_id);
@@ -44,15 +61,10 @@ void OpenCVCapture::grabFrames() {
       return;
     }
 
-    {
-      std::lock_guard<std::mutex> guard(this->last_frame_mutex);
-      this->last_frame = m;
-    }
+    std::lock_guard<std::mutex> guard(this->frames_mutex);
+    this->frames.push(m);
 
-    {
-      std::lock_guard<std::mutex> guard(this->frames_mutex);
-      this->frames.push(m);
-    }
+    std::this_thread::yield();
   }
 }
 }
