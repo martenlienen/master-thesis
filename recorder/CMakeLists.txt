@@ -20,9 +20,9 @@ include_directories(${Boost_INCLUDE_DIRS})
 set(RECORDER_SRCS src/main.cpp src/App.cpp src/gui/Setup.cpp
   src/gui/Controller.cpp src/gui/Instructor.cpp src/gui/OpenCVFrame.cpp
   src/gui/DVSFrame.cpp src/gui/OpenCVDisplay.cpp src/gui/DVSDisplay.cpp
-  src/capture/OpenCVCapture.cpp src/capture/DVSCapture.cpp
-  src/store/AedatStorage.cpp src/store/VideoStorage.cpp src/agents/DVSAgent.cpp
-  src/agents/OpenCVAgent.cpp)
+  src/gui/ReplayFrame.cpp src/capture/OpenCVCapture.cpp
+  src/capture/DVSCapture.cpp src/store/AedatStorage.cpp
+  src/store/VideoStorage.cpp src/agents/DVSAgent.cpp src/agents/OpenCVAgent.cpp)
 
 add_executable(recorder ${RECORDER_SRCS})
 set_property(TARGET recorder PROPERTY CXX_STANDARD 14)

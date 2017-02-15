@@ -42,6 +42,7 @@ private:
   wxStaticText* counter_label;
   wxStaticText* gesture_label;
   wxButton* record_button;
+  wxButton* replay_button;
 
   void toggleDVSFrame();
   void toggleOpenCVFrame();

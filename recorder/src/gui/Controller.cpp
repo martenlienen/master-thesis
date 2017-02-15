@@ -7,6 +7,7 @@
 #include <wx/sizer.h>
 
 #include "Controller.h"
+#include "ReplayFrame.h"
 
 namespace recorder {
 
@@ -25,7 +26,7 @@ Controller::Controller(
                                          wxDefaultSize, wxALIGN_RIGHT);
   this->gesture_label = new wxStaticText(this, wxID_ANY, "");
   this->record_button = new wxButton(this, wxID_ANY, "Start");
-  auto replay_button = new wxButton(this, wxID_ANY, "Replay");
+  this->replay_button = new wxButton(this, wxID_ANY, "Replay");
   auto restart_button = new wxButton(this, wxID_ANY, "Restart DVS");
   auto prev_button = new wxButton(this, wxID_ANY, "<");
   auto next_button = new wxButton(this, wxID_ANY, ">");
@@ -39,7 +40,7 @@ Controller::Controller(
   auto bottom_flags = wxSizerFlags().Center().Expand();
   bottom_sizer->Add(prev_button, bottom_flags.Proportion(0));
   bottom_sizer->Add(this->record_button, bottom_flags.Proportion(1));
-  bottom_sizer->Add(replay_button, bottom_flags.Proportion(1));
+  bottom_sizer->Add(this->replay_button, bottom_flags.Proportion(1));
   bottom_sizer->Add(restart_button, bottom_flags.Proportion(1));
   bottom_sizer->Add(next_button, bottom_flags.Proportion(0));
   sizer->Add(top_sizer, wxSizerFlags().Border(wxALL, 10));
@@ -80,6 +81,17 @@ Controller::Controller(
     }
 
     this->updateLabels();
+  });
+  this->replay_button->Bind(wxEVT_BUTTON, [this](const wxCommandEvent &e) {
+    if (this->recording) {
+      this->stopRecording();
+    }
+
+    auto id = std::get<1>(this->gestures[this->current]);
+    auto path = boost::filesystem::path(this->directory) / this->subject /
+                (id + ".mkv");
+    auto replay_frame = new ReplayFrame(this, path.string());
+    replay_frame->Show();
   });
   restart_button->Bind(wxEVT_BUTTON, [this](const wxCommandEvent &e) {
     if (this->recording) {
@@ -184,8 +196,12 @@ void Controller::updateLabels() {
 
     if (this->currentFileExists()) {
       this->gesture_label->SetLabel(name + " (exists)");
+
+      this->replay_button->Enable();
     } else {
       this->gesture_label->SetLabel(name);
+
+      this->replay_button->Disable();
     }
 
     if (this->recording) {
