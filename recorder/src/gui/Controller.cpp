@@ -30,10 +30,13 @@ Controller::Controller(
   auto restart_button = new wxButton(this, wxID_ANY, "Restart DVS");
   auto prev_button = new wxButton(this, wxID_ANY, "<");
   auto next_button = new wxButton(this, wxID_ANY, ">");
+  auto toggle_cv_button = new wxButton(this, wxID_ANY, "Toggle camera view");
+  auto toggle_dvs_button = new wxButton(this, wxID_ANY, "Toggle DVS view");
 
   auto sizer = new wxBoxSizer(wxVERTICAL);
   auto top_sizer = new wxBoxSizer(wxHORIZONTAL);
   auto bottom_sizer = new wxBoxSizer(wxHORIZONTAL);
+  auto toggle_sizer = new wxBoxSizer(wxHORIZONTAL);
   top_sizer->Add(this->gesture_label, wxSizerFlags().Proportion(1));
   top_sizer->AddStretchSpacer();
   top_sizer->Add(this->counter_label);
@@ -43,8 +46,11 @@ Controller::Controller(
   bottom_sizer->Add(this->replay_button, bottom_flags.Proportion(1));
   bottom_sizer->Add(restart_button, bottom_flags.Proportion(1));
   bottom_sizer->Add(next_button, bottom_flags.Proportion(0));
+  toggle_sizer->Add(toggle_cv_button, bottom_flags.Proportion(1));
+  toggle_sizer->Add(toggle_dvs_button, bottom_flags.Proportion(1));
   sizer->Add(top_sizer, wxSizerFlags().Border(wxALL, 10));
   sizer->Add(bottom_sizer, wxSizerFlags().Border(wxALL, 10));
+  sizer->Add(toggle_sizer, wxSizerFlags().Border(wxALL, 10));
 
   this->SetSizerAndFit(sizer);
 
@@ -115,6 +121,12 @@ Controller::Controller(
     if (this->dvs_frame) {
       this->dvs_agent->setDisplay(this->dvs_frame->display);
     }
+  });
+  toggle_cv_button->Bind(wxEVT_BUTTON, [this](const wxCommandEvent &e) {
+    this->toggleOpenCVFrame();
+  });
+  toggle_dvs_button->Bind(wxEVT_BUTTON, [this](const wxCommandEvent &e) {
+    this->toggleDVSFrame();
   });
 
   this->toggleDVSFrame();
