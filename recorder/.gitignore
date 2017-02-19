@@ -7,3 +7,6 @@ cmake_install.cmake
 # Build artifacts
 recorder
 *.so
+
+# Settings cache
+.recorder-settings

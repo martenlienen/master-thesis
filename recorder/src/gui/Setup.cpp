@@ -1,3 +1,4 @@
+#include <fstream>
 #include <memory>
 #include <string>
 #include <utility>
@@ -24,6 +25,8 @@ namespace gui {
 
 Setup::Setup() : wxFrame(NULL, wxID_ANY, "Setup") {
   auto num_cameras = capture::OpenCVCapture::getNumCameras();
+  this->readSettings(num_cameras);
+
   auto camera_choices = wxArrayString();
   for (auto i = 0; i < num_cameras; i++) {
     camera_choices.Add(std::to_string(i));
@@ -31,10 +34,11 @@ Setup::Setup() : wxFrame(NULL, wxID_ANY, "Setup") {
 
   // Create controls
   auto name_label = new wxStaticText(this, wxID_ANY, "Subject Name");
-  auto name_text = new wxTextCtrl(this, wxID_ANY);
+  auto name_text = new wxTextCtrl(this, wxID_ANY, this->subject);
   auto camera_label = new wxStaticText(this, wxID_ANY, "Camera");
   auto camera_choice = new wxChoice(this, wxID_ANY, wxDefaultPosition,
                                     wxDefaultSize, camera_choices);
+  camera_choice->SetSelection(this->camera_id);
   auto dvs_label = new wxStaticText(this, wxID_ANY, "DVS Device");
   auto dvs_picker = new wxFilePickerCtrl(
       this, wxID_ANY, this->dvs_device, "Which DVS device?",
@@ -44,11 +48,15 @@ Setup::Setup() : wxFrame(NULL, wxID_ANY, "Setup") {
   auto dir_picker = new wxDirPickerCtrl(
       this, wxID_ANY, this->directory, "Where to save data?", wxDefaultPosition,
       wxDefaultSize, wxDIRP_USE_TEXTCTRL);
+  // The constructor ignores the initial value
+  dir_picker->SetPath(this->directory);
   auto gestures_label = new wxStaticText(this, wxID_ANY, "Gestures File");
   auto gestures_picker =
       new wxFilePickerCtrl(this, wxID_ANY, this->gestures, "Gestures File?",
                            "Gesture CSV files (*.csv)|*.csv", wxDefaultPosition,
                            wxDefaultSize, wxFLP_USE_TEXTCTRL | wxFLP_OPEN);
+  // The constructor ignores the initial value
+  gestures_picker->SetPath(this->gestures);
   auto camera_preview_btn = new wxButton(this, wxID_ANY, "Camera Preview");
   auto dvs_preview_btn = new wxButton(this, wxID_ANY, "DVS Preview");
   auto go_btn = new wxButton(this, wxID_ANY, "Start Recording");
@@ -100,6 +108,8 @@ Setup::Setup() : wxFrame(NULL, wxID_ANY, "Setup") {
 }
 
 void Setup::startController() {
+  this->writeSettings();
+
   try {
     auto gestures = this->parseGestures();
 
@@ -142,6 +152,45 @@ Setup::parseGestures() {
   }
 
   return lines;
+}
+
+void Setup::readSettings(uint32_t num_cameras) {
+  boost::filesystem::path path(SETTINGS_PATH);
+  if (!boost::filesystem::exists(path)) {
+    return;
+  }
+
+  std::ifstream stream(path.string());
+
+  if (!stream.is_open()) {
+    return;
+  }
+
+  // This has to be the same order as in #writeSettings
+  std::getline(stream, this->subject);
+  std::string camera_id_buf;
+  std::getline(stream, camera_id_buf);
+  auto camera_id = std::stoi(camera_id_buf);
+  if (camera_id <= num_cameras) {
+    this->camera_id = camera_id;
+  }
+  std::getline(stream, this->dvs_device);
+  std::getline(stream, this->directory);
+  std::getline(stream, this->gestures);
+}
+
+void Setup::writeSettings() {
+  std::ofstream stream(SETTINGS_PATH);
+
+  if (!stream.is_open()) {
+    return;
+  }
+
+  stream << this->subject << std::endl;
+  stream << this->camera_id << std::endl;
+  stream << this->dvs_device << std::endl;
+  stream << this->directory << std::endl;
+  stream << this->gestures << std::endl;
 }
 }
 }
