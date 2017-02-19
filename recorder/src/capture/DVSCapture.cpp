@@ -53,6 +53,7 @@ std::vector<edvs_event_t> DVSCapture::getEvents() {
 }
 
 void DVSCapture::grabEvents() {
+  const uint16_t X_MAX = 127;
   const size_t EVENT_BUFFER_SIZE = 1024;
   edvs_event_t event_buffer[EVENT_BUFFER_SIZE];
 
@@ -66,6 +67,10 @@ void DVSCapture::grabEvents() {
 
     std::lock_guard<std::mutex> guard(this->events_mutex);
     for (ssize_t i = 0; i < n; i++) {
+      // Mirror events along the x-axis so that they are stored the same way as
+      // the camera frames, i.e. as if the DVS was your eye.
+      event_buffer[i].x = X_MAX - event_buffer[i].x;
+
       // The events are in the buffer in reverse order (newest at the front)
       this->events.push(event_buffer[i]);
     }
