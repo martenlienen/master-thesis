@@ -17,7 +17,7 @@ namespace agents {
 
 class OpenCVAgent {
 public:
-  OpenCVAgent();
+  OpenCVAgent(int rotate_degrees);
   ~OpenCVAgent();
 
   void start(uint32_t camera_id);
@@ -27,6 +27,7 @@ public:
   void stopRecording();
 
 private:
+  int rotate_degrees;
   std::thread thread;
   std::mutex display_mutex;
   gui::OpenCVDisplay *display;

@@ -32,6 +32,10 @@ Setup::Setup() : wxFrame(NULL, wxID_ANY, "Setup") {
     camera_choices.Add(std::to_string(i));
   }
 
+  auto rotate_choices = wxArrayString();
+  rotate_choices.Add("0");
+  rotate_choices.Add("180");
+
   // Create controls
   auto name_label = new wxStaticText(this, wxID_ANY, "Subject Name");
   auto name_text = new wxTextCtrl(this, wxID_ANY, this->subject);
@@ -39,6 +43,14 @@ Setup::Setup() : wxFrame(NULL, wxID_ANY, "Setup") {
   auto camera_choice = new wxChoice(this, wxID_ANY, wxDefaultPosition,
                                     wxDefaultSize, camera_choices);
   camera_choice->SetSelection(this->camera_id);
+  auto rotate_label = new wxStaticText(this, wxID_ANY, "Camera Rotation");
+  auto rotate_choice = new wxChoice(this, wxID_ANY, wxDefaultPosition,
+                                    wxDefaultSize, rotate_choices);
+  if (this->rotate_degrees == 0) {
+    rotate_choice->SetSelection(0);
+  } else {
+    rotate_choice->SetSelection(1);
+  }
   auto dvs_label = new wxStaticText(this, wxID_ANY, "DVS Device");
   auto dvs_picker = new wxFilePickerCtrl(
       this, wxID_ANY, this->dvs_device, "Which DVS device?",
@@ -69,6 +81,8 @@ Setup::Setup() : wxFrame(NULL, wxID_ANY, "Setup") {
   form_sizer->Add(name_text, wxSizerFlags().Center().Expand());
   form_sizer->Add(camera_label, wxSizerFlags().Center());
   form_sizer->Add(camera_choice, wxSizerFlags().Center().Expand());
+  form_sizer->Add(rotate_label, wxSizerFlags().Center());
+  form_sizer->Add(rotate_choice, wxSizerFlags().Center().Expand());
   form_sizer->Add(dvs_label, wxSizerFlags().Center());
   form_sizer->Add(dvs_picker, wxSizerFlags().Center().Expand());
   form_sizer->Add(dir_label, wxSizerFlags().Center());
@@ -90,6 +104,13 @@ Setup::Setup() : wxFrame(NULL, wxID_ANY, "Setup") {
   });
   camera_choice->Bind(wxEVT_CHOICE, [this](const wxCommandEvent &e) {
     this->camera_id = e.GetInt();
+  });
+  rotate_choice->Bind(wxEVT_CHOICE, [this](const wxCommandEvent &e) {
+    if (e.GetInt() == 0) {
+      this->rotate_degrees = 0;
+    } else {
+      this->rotate_degrees = 180;
+    }
   });
   dvs_picker->Bind(wxEVT_FILEPICKER_CHANGED,
                    [this](const wxFileDirPickerEvent &e) {
@@ -114,7 +135,8 @@ void Setup::startController() {
     auto gestures = this->parseGestures();
 
     std::unique_ptr<agents::DVSAgent> dvs_agent(new agents::DVSAgent());
-    std::unique_ptr<agents::OpenCVAgent> cv_agent(new agents::OpenCVAgent());
+    std::unique_ptr<agents::OpenCVAgent> cv_agent(
+        new agents::OpenCVAgent(this->rotate_degrees));
 
     dvs_agent->start(this->dvs_device);
     cv_agent->start(this->camera_id);
@@ -174,6 +196,12 @@ void Setup::readSettings(uint32_t num_cameras) {
   if (camera_id <= num_cameras) {
     this->camera_id = camera_id;
   }
+  std::string rotate_buf;
+  std::getline(stream, rotate_buf);
+  auto rotate_deg = std::stoi(rotate_buf);
+  if (rotate_deg == 0 || rotate_deg == 180) {
+    this->rotate_degrees = rotate_deg;
+  }
   std::getline(stream, this->dvs_device);
   std::getline(stream, this->directory);
   std::getline(stream, this->gestures);
@@ -188,6 +216,7 @@ void Setup::writeSettings() {
 
   stream << this->subject << std::endl;
   stream << this->camera_id << std::endl;
+  stream << this->rotate_degrees << std::endl;
   stream << this->dvs_device << std::endl;
   stream << this->directory << std::endl;
   stream << this->gestures << std::endl;

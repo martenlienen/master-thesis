@@ -19,6 +19,7 @@ private:
   const std::string SETTINGS_PATH = ".recorder-settings";
   std::string subject = "";
   uint32_t camera_id = 0;
+  uint32_t rotate_degrees = 0;
   std::string dvs_device = "/dev/ttyUSB0";
   std::string directory;
   std::string gestures =

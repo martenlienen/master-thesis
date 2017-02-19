@@ -6,7 +6,8 @@ namespace recorder {
 
 namespace agents {
 
-OpenCVAgent::OpenCVAgent() : started(false), display(nullptr) {}
+OpenCVAgent::OpenCVAgent(int rotate_degrees)
+    : rotate_degrees(rotate_degrees), started(false), display(nullptr) {}
 
 void OpenCVAgent::start(uint32_t camera_id) {
   this->started = true;
@@ -57,6 +58,13 @@ void OpenCVAgent::run() {
     auto frames = this->capture->getFrames();
 
     if (frames.size() > 0) {
+      // Rotate frames
+      if (this->rotate_degrees == 180) {
+        for (auto &f : frames) {
+          cv::flip(f, f, -1);
+        }
+      }
+
       // Push frames to view
       {
         std::lock_guard<std::mutex> guard(this->display_mutex);
