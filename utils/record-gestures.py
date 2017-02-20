@@ -5,7 +5,8 @@ import os
 import subprocess
 
 directions = ["up", "down", "left", "right"]
-gestures = [("Hand {}".format(d), "hand-{}.mkv".format(d)) for d in directions]
+gestures = []
+gestures += [("Hand {}".format(d), "hand-{}.mkv".format(d)) for d in directions]
 gestures += [("Two fingers {}".format(d), "two-fingers-{}.mkv".format(d))
              for d in directions]
 gestures += [("Tap with index finger", "tap-index.mkv"),
@@ -24,11 +25,30 @@ gestures += [("Thumbs up", "thumbs-up.mkv")]
 gestures += [("Ok", "ok.mkv")]
 gestures += [("Swipe {}".format(d), "swipe-{}.mkv".format(d))
              for d in directions]
+gestures += [("Accelerate", "accelerate.mkv"),
+             ("Decelerate", "decelerate.mkv"),
+             ("Switch lane to the left", "switch-left.mkv"),
+             ("Switch lane to the right", "switch-right.mkv"),
+             ("Take over left", "take-over-left.mkv"),
+             ("Take over right", "take-over-right.mkv"),
+             ("Turn left", "turn-left.mkv"),
+             ("Turn right", "turn-right.mkv"),
+             ("Park on the front left", "park-front-left.mkv"),
+             ("Park on the front right", "park-front-right.mkv"),
+             ("Park on the back left", "park-back-left.mkv"),
+             ("Park on the back right", "park-back-right.mkv"),
+             ("Merge", "merge.mkv"),
+             ("Start engine", "start-engine.mkv"),
+             ("Stop engine", "stop-engine.mkv")] # yapf: disable
+gestures += [("Zone {}".format(i), "zone-{}.mkv".format(i))
+             for i in range(1, 9)]
+gestures += [("Yawning", "yawning.mkv"), ("Blinking", "blinking.mkv")]
 
 
 def record(path):
     subprocess.run(["ffmpeg", "-f", "v4l2", "-video_size", "1280x720", "-i",
                     "/dev/video1", "-an", path])
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -45,6 +65,7 @@ def main():
         print(name)
         input("Press enter to record...")
         record(path)
+
 
 if __name__ == "__main__":
     main()
