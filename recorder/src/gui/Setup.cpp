@@ -168,8 +168,7 @@ Setup::parseGestures() {
   std::vector<std::tuple<std::string, std::string, std::string>> lines;
   std::string name, id, file;
   while (reader.read_row(name, id, file)) {
-    boost::filesystem::path file_path(dir);
-    file_path += file;
+    auto file_path = boost::filesystem::path(dir) / file;
     lines.push_back(std::make_tuple(name, id, file_path.string()));
   }
 

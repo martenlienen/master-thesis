@@ -24,6 +24,9 @@ Controller::Controller(
       subject(subject), directory(directory), gestures(gestures),
       dvs_agent(std::move(dvs_agent)), cv_agent(std::move(cv_agent)),
       dvs_frame(nullptr), cv_frame(nullptr) {
+  this->instructor = new Instructor(this);
+  this->instructor->Show();
+
   this->counter_label = new wxStaticText(this, wxID_ANY, "", wxDefaultPosition,
                                          wxDefaultSize, wxALIGN_RIGHT);
   this->gesture_label = new wxStaticText(this, wxID_ANY, "");
@@ -65,6 +68,7 @@ Controller::Controller(
   prev_button->Bind(wxEVT_BUTTON, [this](const wxCommandEvent &e) {
     if (this->current > 0) {
       this->current -= 1;
+      this->playCurrentInstruction();
     }
 
     if (this->recording) {
@@ -76,6 +80,7 @@ Controller::Controller(
   next_button->Bind(wxEVT_BUTTON, [this](const wxCommandEvent &e) {
     if (this->current < this->num_gestures - 1) {
       this->current += 1;
+      this->playCurrentInstruction();
     }
 
     if (this->recording) {
@@ -160,6 +165,8 @@ Controller::Controller(
   this->toggleOpenCVFrame();
 
   this->updateLabels();
+
+  this->playCurrentInstruction();
 }
 
 void Controller::toggleDVSFrame() {
@@ -306,6 +313,11 @@ bool Controller::currentFileExists() {
       boost::filesystem::path(this->directory) / this->subject / (id + ".mkv");
 
   return boost::filesystem::exists(path);
+}
+
+void Controller::playCurrentInstruction() {
+  this->instructor->playInstructions(
+      std::get<2>(this->gestures[this->current]));
 }
 }
 }

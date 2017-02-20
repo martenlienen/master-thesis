@@ -44,6 +44,7 @@ Instructor::Instructor(wxFrame *parent)
 }
 
 void Instructor::playInstructions(std::string path) {
+  std::cout << path << std::endl;
   this->player->Load(path);
 }
 

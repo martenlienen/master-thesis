@@ -13,6 +13,7 @@
 #include "../agents/DVSAgent.h"
 #include "../agents/OpenCVAgent.h"
 #include "DVSFrame.h"
+#include "Instructor.h"
 #include "OpenCVFrame.h"
 
 namespace recorder {
@@ -39,12 +40,13 @@ private:
   std::unique_ptr<agents::OpenCVAgent> cv_agent;
   gui::DVSFrame *dvs_frame;
   gui::OpenCVFrame *cv_frame;
+  gui::Instructor *instructor;
 
-  wxStaticText* counter_label;
-  wxStaticText* gesture_label;
-  wxButton* record_button;
-  wxButton* long_record_button;
-  wxButton* replay_button;
+  wxStaticText *counter_label;
+  wxStaticText *gesture_label;
+  wxButton *record_button;
+  wxButton *long_record_button;
+  wxButton *replay_button;
 
   void toggleDVSFrame();
   void toggleOpenCVFrame();
@@ -57,6 +59,8 @@ private:
   void updateLabels();
 
   bool currentFileExists();
+
+  void playCurrentInstruction();
 };
 }
 }
