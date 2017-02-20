@@ -19,13 +19,16 @@ Controller::Controller(
     std::unique_ptr<agents::DVSAgent> dvs_agent,
     std::unique_ptr<agents::OpenCVAgent> cv_agent)
     : wxFrame(nullptr, wxID_ANY, "Controller"), recording(false),
-      num_gestures(gestures.size()), current(0), subject(subject),
-      directory(directory), gestures(gestures), dvs_agent(std::move(dvs_agent)),
-      cv_agent(std::move(cv_agent)), dvs_frame(nullptr), cv_frame(nullptr) {
+      long_recording(false), num_gestures(gestures.size()), current(0),
+      subject(subject), directory(directory), gestures(gestures),
+      dvs_agent(std::move(dvs_agent)), cv_agent(std::move(cv_agent)),
+      dvs_frame(nullptr), cv_frame(nullptr) {
   this->counter_label = new wxStaticText(this, wxID_ANY, "", wxDefaultPosition,
                                          wxDefaultSize, wxALIGN_RIGHT);
   this->gesture_label = new wxStaticText(this, wxID_ANY, "");
   this->record_button = new wxButton(this, wxID_ANY, "Start");
+  this->long_record_button =
+      new wxButton(this, wxID_ANY, "Start long recording");
   this->replay_button = new wxButton(this, wxID_ANY, "Replay");
   auto restart_button = new wxButton(this, wxID_ANY, "Restart DVS");
   auto prev_button = new wxButton(this, wxID_ANY, "<");
@@ -48,6 +51,7 @@ Controller::Controller(
   bottom_sizer->Add(next_button, bottom_flags.Proportion(0));
   toggle_sizer->Add(toggle_cv_button, bottom_flags.Proportion(1));
   toggle_sizer->Add(toggle_dvs_button, bottom_flags.Proportion(1));
+  toggle_sizer->Add(this->long_record_button, bottom_flags.Proportion(1));
   sizer->Add(top_sizer, wxSizerFlags().Border(wxALL, 10));
   sizer->Add(bottom_sizer, wxSizerFlags().Border(wxALL, 10));
   sizer->Add(toggle_sizer, wxSizerFlags().Border(wxALL, 10));
@@ -84,6 +88,17 @@ Controller::Controller(
     } else {
       this->startRecording();
       this->recording = true;
+    }
+
+    this->updateLabels();
+  });
+  this->long_record_button->Bind(wxEVT_BUTTON, [this](const wxCommandEvent &e) {
+    if (this->long_recording) {
+      this->stopLongRecording();
+      this->long_recording = false;
+    } else {
+      this->startLongRecording();
+      this->long_recording = true;
     }
 
     this->updateLabels();
@@ -187,6 +202,7 @@ void Controller::startRecording() {
   boost::filesystem::path dir(this->directory);
   dir /= this->subject;
 
+  // Ensure that directory exists
   boost::filesystem::create_directories(dir);
 
   this->dvs_agent->startRecording((dir / (id + ".aedat")).string());
@@ -196,6 +212,38 @@ void Controller::startRecording() {
 void Controller::stopRecording() {
   this->dvs_agent->stopRecording();
   this->cv_agent->stopRecording();
+}
+
+void Controller::startLongRecording() {
+  auto dir = boost::filesystem::path(this->directory) / this->subject;
+  int cv_index = 0, dvs_index = 0;
+  boost::filesystem::path cv_path, dvs_path;
+
+  // Ensure that directory exists
+  boost::filesystem::create_directories(dir);
+
+  // Find first non-existant total file
+  do {
+    cv_path = dir / ("total-" + std::to_string(cv_index) + ".mkv");
+    cv_index += 1;
+  } while (boost::filesystem::exists(cv_path));
+
+  do {
+    dvs_path = dir / ("total-" + std::to_string(dvs_index) + ".aedat");
+    dvs_index += 1;
+  } while (boost::filesystem::exists(dvs_path));
+
+  try {
+    this->dvs_agent->startLongRecording(dvs_path.string());
+    this->cv_agent->startLongRecording(cv_path.string());
+  } catch (std::runtime_error &e) {
+    std::cout << e.what() << std::endl;
+  }
+}
+
+void Controller::stopLongRecording() {
+  this->dvs_agent->stopLongRecording();
+  this->cv_agent->stopLongRecording();
 }
 
 void Controller::updateLabels() {
@@ -220,6 +268,12 @@ void Controller::updateLabels() {
       this->record_button->SetLabel("Stop Recording");
     } else {
       this->record_button->SetLabel("Start Recording");
+    }
+
+    if (this->long_recording) {
+      this->long_record_button->SetLabel("Stop long recording");
+    } else {
+      this->long_record_button->SetLabel("Start long recording");
     }
   }
 }

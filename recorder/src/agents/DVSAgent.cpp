@@ -29,6 +29,7 @@ void DVSAgent::stop() {
   }
 
   this->stopRecording();
+  this->stopLongRecording();
   this->started = false;
 
   if (this->thread.joinable()) {
@@ -49,6 +50,16 @@ void DVSAgent::startRecording(std::string path) {
 void DVSAgent::stopRecording() {
   std::lock_guard<std::mutex> guard(this->storage_mutex);
   this->storage.reset();
+}
+
+void DVSAgent::startLongRecording(std::string path) {
+  std::lock_guard<std::mutex> guard(this->long_storage_mutex);
+  this->long_storage.reset(new store::AedatStorage(path));
+}
+
+void DVSAgent::stopLongRecording() {
+  std::lock_guard<std::mutex> guard(this->long_storage_mutex);
+  this->long_storage.reset();
 }
 
 void DVSAgent::run() {
@@ -72,6 +83,16 @@ void DVSAgent::run() {
       if (this->storage) {
         for (int i = events.size() - 1; i >= 0; i--) {
           this->storage->write(events[i]);
+        }
+      }
+    }
+
+    // Write events into long file
+    {
+      std::lock_guard<std::mutex> guard(this->long_storage_mutex);
+      if (this->long_storage) {
+        for (int i = events.size() - 1; i >= 0; i--) {
+          this->long_storage->write(events[i]);
         }
       }
     }

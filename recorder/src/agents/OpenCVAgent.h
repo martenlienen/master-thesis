@@ -25,6 +25,8 @@ public:
   void setDisplay(gui::OpenCVDisplay *display);
   void startRecording(std::string path);
   void stopRecording();
+  void startLongRecording(std::string path);
+  void stopLongRecording();
 
 private:
   int rotate_degrees;
@@ -33,6 +35,8 @@ private:
   gui::OpenCVDisplay *display;
   std::mutex storage_mutex;
   std::unique_ptr<store::VideoStorage> storage;
+  std::mutex long_storage_mutex;
+  std::unique_ptr<store::VideoStorage> long_storage;
   std::unique_ptr<capture::OpenCVCapture> capture;
   std::atomic<bool> started;
 

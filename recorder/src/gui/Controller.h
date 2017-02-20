@@ -31,6 +31,7 @@ private:
   int num_gestures;
   int current;
   bool recording;
+  bool long_recording;
   std::string subject;
   std::string directory;
   std::vector<std::tuple<std::string, std::string, std::string>> gestures;
@@ -42,6 +43,7 @@ private:
   wxStaticText* counter_label;
   wxStaticText* gesture_label;
   wxButton* record_button;
+  wxButton* long_record_button;
   wxButton* replay_button;
 
   void toggleDVSFrame();
@@ -49,6 +51,8 @@ private:
 
   void startRecording();
   void stopRecording();
+  void startLongRecording();
+  void stopLongRecording();
 
   void updateLabels();
 

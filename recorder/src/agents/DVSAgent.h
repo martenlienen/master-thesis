@@ -27,6 +27,8 @@ public:
   void setDisplay(gui::DVSDisplay *display);
   void startRecording(std::string path);
   void stopRecording();
+  void startLongRecording(std::string path);
+  void stopLongRecording();
 
 private:
   std::thread thread;
@@ -34,6 +36,8 @@ private:
   gui::DVSDisplay *display;
   std::mutex storage_mutex;
   std::unique_ptr<store::AedatStorage> storage;
+  std::mutex long_storage_mutex;
+  std::unique_ptr<store::AedatStorage> long_storage;
   std::unique_ptr<capture::DVSCapture> capture;
   std::atomic<bool> started;
 

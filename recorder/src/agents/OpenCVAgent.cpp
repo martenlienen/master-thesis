@@ -28,6 +28,7 @@ void OpenCVAgent::stop() {
   }
 
   this->stopRecording();
+  this->stopLongRecording();
   this->started = false;
 
   if (this->thread.joinable()) {
@@ -48,6 +49,16 @@ void OpenCVAgent::startRecording(std::string path) {
 void OpenCVAgent::stopRecording() {
   std::lock_guard<std::mutex> guard(this->storage_mutex);
   this->storage.reset();
+}
+
+void OpenCVAgent::startLongRecording(std::string path) {
+  std::lock_guard<std::mutex> guard(this->long_storage_mutex);
+  this->long_storage.reset(new store::VideoStorage(path));
+}
+
+void OpenCVAgent::stopLongRecording() {
+  std::lock_guard<std::mutex> guard(this->long_storage_mutex);
+  this->long_storage.reset();
 }
 
 void OpenCVAgent::run() {
@@ -79,6 +90,16 @@ void OpenCVAgent::run() {
         if (this->storage) {
           for (auto &f : frames) {
             this->storage->write(f);
+          }
+        }
+      }
+
+      // Write frames into long file
+      {
+        std::lock_guard<std::mutex> guard(this->long_storage_mutex);
+        if (this->long_storage) {
+          for (auto &f : frames) {
+            this->long_storage->write(f);
           }
         }
       }
