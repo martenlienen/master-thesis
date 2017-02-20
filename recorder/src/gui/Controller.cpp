@@ -219,11 +219,17 @@ void Controller::startRecording() {
 
   this->dvs_agent->startRecording((dir / (id + ".aedat")).string());
   this->cv_agent->startRecording((dir / (id + ".mkv")).string());
+
+  this->dvs_agent->startGesture(id);
+  this->cv_agent->startGesture(id);
 }
 
 void Controller::stopRecording() {
   this->dvs_agent->stopRecording();
   this->cv_agent->stopRecording();
+
+  this->dvs_agent->stopGesture();
+  this->cv_agent->stopGesture();
 }
 
 void Controller::startLongRecording() {

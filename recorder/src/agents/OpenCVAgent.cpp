@@ -7,7 +7,8 @@ namespace recorder {
 namespace agents {
 
 OpenCVAgent::OpenCVAgent(int rotate_degrees)
-    : rotate_degrees(rotate_degrees), started(false), display(nullptr) {}
+    : rotate_degrees(rotate_degrees), num_frames_long(0), started(false),
+      display(nullptr) {}
 
 void OpenCVAgent::start(uint32_t camera_id) {
   this->started = true;
@@ -54,11 +55,31 @@ void OpenCVAgent::stopRecording() {
 void OpenCVAgent::startLongRecording(std::string path) {
   std::lock_guard<std::mutex> guard(this->long_storage_mutex);
   this->long_storage.reset(new store::VideoStorage(path));
+  this->num_frames_long = 0;
+  this->long_timestamps.reset(new TimestampFile(path + ".csv"));
 }
 
 void OpenCVAgent::stopLongRecording() {
   std::lock_guard<std::mutex> guard(this->long_storage_mutex);
   this->long_storage.reset();
+  this->long_timestamps.reset();
+}
+
+void OpenCVAgent::startGesture(std::string name) {
+  std::lock_guard<std::mutex> guard(this->long_storage_mutex);
+  this->current_gesture_start = this->num_frames_long;
+  this->current_gesture = name;
+}
+
+void OpenCVAgent::stopGesture() {
+  if (!this->long_timestamps) {
+    return;
+  }
+
+  std::lock_guard<std::mutex> guard(this->long_storage_mutex);
+  this->long_timestamps->pushTimestamp(this->current_gesture,
+                                       this->current_gesture_start,
+                                       this->num_frames_long);
 }
 
 void OpenCVAgent::run() {
@@ -97,6 +118,7 @@ void OpenCVAgent::run() {
       // Write frames into long file
       {
         std::lock_guard<std::mutex> guard(this->long_storage_mutex);
+        this->num_frames_long += frames.size();
         if (this->long_storage) {
           for (auto &f : frames) {
             this->long_storage->write(f);

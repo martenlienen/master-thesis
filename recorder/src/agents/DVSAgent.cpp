@@ -55,11 +55,31 @@ void DVSAgent::stopRecording() {
 void DVSAgent::startLongRecording(std::string path) {
   std::lock_guard<std::mutex> guard(this->long_storage_mutex);
   this->long_storage.reset(new store::AedatStorage(path));
+  this->num_events_long = 0;
+  this->long_timestamps.reset(new TimestampFile(path + ".csv"));
 }
 
 void DVSAgent::stopLongRecording() {
   std::lock_guard<std::mutex> guard(this->long_storage_mutex);
   this->long_storage.reset();
+  this->long_timestamps.reset();
+}
+
+void DVSAgent::startGesture(std::string name) {
+  std::lock_guard<std::mutex> guard(this->long_storage_mutex);
+  this->current_gesture_start = this->num_events_long;
+  this->current_gesture = name;
+}
+
+void DVSAgent::stopGesture() {
+  if (!this->long_timestamps) {
+    return;
+  }
+
+  std::lock_guard<std::mutex> guard(this->long_storage_mutex);
+  this->long_timestamps->pushTimestamp(this->current_gesture,
+                                       this->current_gesture_start,
+                                       this->num_events_long);
 }
 
 void DVSAgent::run() {
@@ -90,6 +110,7 @@ void DVSAgent::run() {
     // Write events into long file
     {
       std::lock_guard<std::mutex> guard(this->long_storage_mutex);
+      this->num_events_long += events.size();
       if (this->long_storage) {
         for (int i = events.size() - 1; i >= 0; i--) {
           this->long_storage->write(events[i]);

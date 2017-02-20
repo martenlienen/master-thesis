@@ -10,6 +10,7 @@
 #include "../capture/DVSCapture.h"
 #include "../gui/DVSDisplay.h"
 #include "../store/AedatStorage.h"
+#include "TimestampFile.h"
 
 namespace recorder {
 
@@ -29,8 +30,11 @@ public:
   void stopRecording();
   void startLongRecording(std::string path);
   void stopLongRecording();
+  void startGesture(std::string name);
+  void stopGesture();
 
 private:
+  uint64_t num_events_long;
   std::thread thread;
   std::mutex display_mutex;
   gui::DVSDisplay *display;
@@ -38,6 +42,9 @@ private:
   std::unique_ptr<store::AedatStorage> storage;
   std::mutex long_storage_mutex;
   std::unique_ptr<store::AedatStorage> long_storage;
+  std::string current_gesture;
+  uint64_t current_gesture_start;
+  std::unique_ptr<TimestampFile> long_timestamps;
   std::unique_ptr<capture::DVSCapture> capture;
   std::atomic<bool> started;
 

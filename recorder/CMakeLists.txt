@@ -22,7 +22,8 @@ set(RECORDER_SRCS src/main.cpp src/App.cpp src/gui/Setup.cpp
   src/gui/DVSFrame.cpp src/gui/OpenCVDisplay.cpp src/gui/DVSDisplay.cpp
   src/gui/ReplayFrame.cpp src/capture/OpenCVCapture.cpp
   src/capture/DVSCapture.cpp src/store/AedatStorage.cpp
-  src/store/VideoStorage.cpp src/agents/DVSAgent.cpp src/agents/OpenCVAgent.cpp)
+  src/store/VideoStorage.cpp src/agents/DVSAgent.cpp src/agents/OpenCVAgent.cpp
+  src/agents/TimestampFile.cpp)
 
 add_executable(recorder ${RECORDER_SRCS})
 set_property(TARGET recorder PROPERTY CXX_STANDARD 14)

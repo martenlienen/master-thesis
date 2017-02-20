@@ -5,11 +5,13 @@
 #include <memory>
 #include <mutex>
 #include <queue>
+#include <string>
 #include <thread>
 
 #include "../capture/OpenCVCapture.h"
 #include "../gui/OpenCVDisplay.h"
 #include "../store/VideoStorage.h"
+#include "TimestampFile.h"
 
 namespace recorder {
 
@@ -27,9 +29,12 @@ public:
   void stopRecording();
   void startLongRecording(std::string path);
   void stopLongRecording();
+  void startGesture(std::string name);
+  void stopGesture();
 
 private:
   int rotate_degrees;
+  uint64_t num_frames_long;
   std::thread thread;
   std::mutex display_mutex;
   gui::OpenCVDisplay *display;
@@ -37,6 +42,9 @@ private:
   std::unique_ptr<store::VideoStorage> storage;
   std::mutex long_storage_mutex;
   std::unique_ptr<store::VideoStorage> long_storage;
+  std::string current_gesture;
+  uint64_t current_gesture_start;
+  std::unique_ptr<TimestampFile> long_timestamps;
   std::unique_ptr<capture::OpenCVCapture> capture;
   std::atomic<bool> started;
 
