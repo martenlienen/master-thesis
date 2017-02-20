@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <iostream>
 #include <utility>
 
@@ -35,6 +36,7 @@ Controller::Controller(
   auto next_button = new wxButton(this, wxID_ANY, ">");
   auto toggle_cv_button = new wxButton(this, wxID_ANY, "Toggle camera view");
   auto toggle_dvs_button = new wxButton(this, wxID_ANY, "Toggle DVS view");
+  auto randomize_button = new wxButton(this, wxID_ANY, "Randomize Order");
 
   auto sizer = new wxBoxSizer(wxVERTICAL);
   auto top_sizer = new wxBoxSizer(wxHORIZONTAL);
@@ -52,6 +54,7 @@ Controller::Controller(
   toggle_sizer->Add(toggle_cv_button, bottom_flags.Proportion(1));
   toggle_sizer->Add(toggle_dvs_button, bottom_flags.Proportion(1));
   toggle_sizer->Add(this->long_record_button, bottom_flags.Proportion(1));
+  toggle_sizer->Add(randomize_button, bottom_flags.Proportion(1));
   sizer->Add(top_sizer, wxSizerFlags().Border(wxALL, 10));
   sizer->Add(bottom_sizer, wxSizerFlags().Border(wxALL, 10));
   sizer->Add(toggle_sizer, wxSizerFlags().Border(wxALL, 10));
@@ -142,6 +145,15 @@ Controller::Controller(
   });
   toggle_dvs_button->Bind(wxEVT_BUTTON, [this](const wxCommandEvent &e) {
     this->toggleDVSFrame();
+  });
+  randomize_button->Bind(wxEVT_BUTTON, [this](const wxCommandEvent &e) {
+    if (recording) {
+      this->stopRecording();
+    }
+
+    std::random_shuffle(this->gestures.begin(), this->gestures.end());
+
+    this->updateLabels();
   });
 
   this->toggleDVSFrame();
