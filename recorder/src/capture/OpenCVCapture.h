@@ -17,10 +17,11 @@ namespace capture {
 class OpenCVCapture {
 public:
   uint32_t camera_id;
+  const uint32_t fps;
 
   static uint32_t getNumCameras();
 
-  OpenCVCapture(uint32_t camera_id);
+  OpenCVCapture(uint32_t camera_id, uint32_t fps);
   ~OpenCVCapture();
   void start();
   void stop();

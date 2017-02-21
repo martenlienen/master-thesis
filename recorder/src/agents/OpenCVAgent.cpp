@@ -14,7 +14,7 @@ void OpenCVAgent::start(uint32_t camera_id) {
   this->started = true;
 
   // Capture OpenCV signal
-  this->capture.reset(new capture::OpenCVCapture(camera_id));
+  this->capture.reset(new capture::OpenCVCapture(camera_id, FPS));
   this->capture->start();
 
   // Start the thread
@@ -44,7 +44,7 @@ void OpenCVAgent::setDisplay(gui::OpenCVDisplay *display) {
 
 void OpenCVAgent::startRecording(std::string path) {
   std::lock_guard<std::mutex> guard(this->storage_mutex);
-  this->storage.reset(new store::VideoStorage(path));
+  this->storage.reset(new store::VideoStorage(path, FPS));
 }
 
 void OpenCVAgent::stopRecording() {
@@ -54,7 +54,7 @@ void OpenCVAgent::stopRecording() {
 
 void OpenCVAgent::startLongRecording(std::string path) {
   std::lock_guard<std::mutex> guard(this->long_storage_mutex);
-  this->long_storage.reset(new store::VideoStorage(path));
+  this->long_storage.reset(new store::VideoStorage(path, FPS));
   this->num_frames_long = 0;
   this->long_timestamps.reset(new TimestampFile(path + ".csv"));
 }

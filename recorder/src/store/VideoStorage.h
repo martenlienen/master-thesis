@@ -12,7 +12,7 @@ namespace store {
 
 class VideoStorage {
 public:
-  VideoStorage(std::string path);
+  VideoStorage(std::string path, uint32_t fps);
 
   void write(cv::Mat frame);
 

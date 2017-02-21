@@ -1,3 +1,5 @@
+#include <chrono>
+
 #include <opencv2/videoio.hpp>
 
 #include "OpenCVCapture.h"
@@ -21,7 +23,8 @@ uint32_t OpenCVCapture::getNumCameras() {
   return UINT32_MAX;
 }
 
-OpenCVCapture::OpenCVCapture(uint32_t camera_id) : camera_id(camera_id) {}
+OpenCVCapture::OpenCVCapture(uint32_t camera_id, uint32_t fps)
+    : camera_id(camera_id), fps(fps) {}
 
 OpenCVCapture::~OpenCVCapture() { this->stop(); }
 
@@ -52,9 +55,11 @@ std::vector<cv::Mat> OpenCVCapture::getFrames() {
 }
 
 void OpenCVCapture::grabFrames() {
+  const std::chrono::milliseconds sleep_time((int)(1000.0 / this->fps));
   cv::VideoCapture cap(this->camera_id);
 
   while (!this->stopped.load()) {
+    auto start = std::chrono::high_resolution_clock::now();
     cv::Mat m;
 
     if (!cap.read(m)) {
@@ -64,7 +69,10 @@ void OpenCVCapture::grabFrames() {
     std::lock_guard<std::mutex> guard(this->frames_mutex);
     this->frames.push(m);
 
-    std::this_thread::yield();
+    auto end = std::chrono::high_resolution_clock::now();
+
+    // Sleep while correcting for the time that was used to grab the frame
+    std::this_thread::sleep_for(sleep_time - (end - start));
   }
 }
 }

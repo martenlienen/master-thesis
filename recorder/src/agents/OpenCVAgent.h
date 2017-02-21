@@ -19,6 +19,8 @@ namespace agents {
 
 class OpenCVAgent {
 public:
+  const int FPS = 15;
+
   OpenCVAgent(int rotate_degrees);
   ~OpenCVAgent();
 
