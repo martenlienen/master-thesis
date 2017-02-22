@@ -58,7 +58,10 @@ private:
 
   void updateLabels();
 
+  bool gestureExists(std::string id);
   bool currentFileExists();
+
+  void sortGestures();
 
   void playCurrentInstruction();
 };

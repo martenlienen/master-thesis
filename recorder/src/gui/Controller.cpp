@@ -157,9 +157,12 @@ Controller::Controller(
     }
 
     std::random_shuffle(this->gestures.begin(), this->gestures.end());
+    this->sortGestures();
 
     this->updateLabels();
   });
+
+  this->sortGestures();
 
   this->toggleDVSFrame();
   this->toggleOpenCVFrame();
@@ -303,16 +306,31 @@ void Controller::updateLabels() {
   }
 }
 
+bool Controller::gestureExists(std::string id) {
+  auto path =
+      boost::filesystem::path(this->directory) / this->subject / (id + ".mkv");
+
+  return boost::filesystem::exists(path);
+}
+
 bool Controller::currentFileExists() {
   if (this->num_gestures == 0) {
     return false;
   }
 
   auto id = std::get<1>(this->gestures[this->current]);
-  auto path =
-      boost::filesystem::path(this->directory) / this->subject / (id + ".mkv");
+  return this->gestureExists(id);
+}
 
-  return boost::filesystem::exists(path);
+void Controller::sortGestures() {
+  std::stable_sort(std::begin(this->gestures), std::end(this->gestures),
+                   [this](std::tuple<std::string, std::string, std::string> a,
+                          std::tuple<std::string, std::string, std::string> b) {
+                     int a_exists = this->gestureExists(std::get<1>(a));
+                     int b_exists = this->gestureExists(std::get<1>(b));
+
+                     return a_exists > b_exists;
+                   });
 }
 
 void Controller::playCurrentInstruction() {
