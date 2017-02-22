@@ -62,6 +62,7 @@ private:
   bool currentFileExists();
 
   void sortGestures();
+  int getIterationNumber(std::string name);
 
   void playCurrentInstruction();
 };

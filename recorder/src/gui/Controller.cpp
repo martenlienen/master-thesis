@@ -326,11 +326,31 @@ void Controller::sortGestures() {
   std::stable_sort(std::begin(this->gestures), std::end(this->gestures),
                    [this](std::tuple<std::string, std::string, std::string> a,
                           std::tuple<std::string, std::string, std::string> b) {
+                     auto a_num = this->getIterationNumber(std::get<0>(a));
+                     auto b_num = this->getIterationNumber(std::get<0>(b));
+
+                     return a_num < b_num;
+                   });
+
+  std::stable_sort(std::begin(this->gestures), std::end(this->gestures),
+                   [this](std::tuple<std::string, std::string, std::string> a,
+                          std::tuple<std::string, std::string, std::string> b) {
                      int a_exists = this->gestureExists(std::get<1>(a));
                      int b_exists = this->gestureExists(std::get<1>(b));
 
                      return a_exists > b_exists;
                    });
+}
+
+int Controller::getIterationNumber(std::string name) {
+  auto opening = name.find_first_of("(");
+  auto closing = name.find_first_of(")");
+
+  if (opening == std::string::npos || closing == std::string::npos) {
+    return 1;
+  } else {
+    return std::stoi(name.substr(opening + 1, closing - 1));
+  }
 }
 
 void Controller::playCurrentInstruction() {
