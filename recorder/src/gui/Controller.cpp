@@ -94,7 +94,7 @@ Controller::Controller(
       this->stopRecording();
       this->recording = false;
     } else {
-      this->startRecording();
+      this->instructor->countdown([this]() { this->startRecording(); });
       this->recording = true;
     }
 
