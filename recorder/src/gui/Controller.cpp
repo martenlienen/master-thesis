@@ -339,6 +339,12 @@ void Controller::sortGestures() {
   std::stable_sort(std::begin(this->gestures), std::end(this->gestures),
                    [this](std::tuple<std::string, std::string, std::string> a,
                           std::tuple<std::string, std::string, std::string> b) {
+                     return std::get<1>(a) < std::get<1>(b);
+                   });
+
+  std::stable_sort(std::begin(this->gestures), std::end(this->gestures),
+                   [this](std::tuple<std::string, std::string, std::string> a,
+                          std::tuple<std::string, std::string, std::string> b) {
                      int a_exists = this->gestureExists(std::get<1>(a));
                      int b_exists = this->gestureExists(std::get<1>(b));
 
