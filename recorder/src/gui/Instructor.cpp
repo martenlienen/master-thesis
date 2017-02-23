@@ -48,7 +48,7 @@ void Instructor::playInstructions(std::string path) {
 }
 
 void Instructor::countdown(std::function<void()> callback) {
-  this->time_left = 2;
+  this->time_left = 1;
   auto timer = new wxTimer(this);
 
   this->drawCountdown();
