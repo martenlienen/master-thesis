@@ -167,6 +167,10 @@ Controller::Controller(
   this->toggleDVSFrame();
   this->toggleOpenCVFrame();
 
+  while (this->current < this->num_gestures - 1 && this->currentFileExists()) {
+    this->current += 1;
+  }
+
   this->updateLabels();
 
   this->playCurrentInstruction();
