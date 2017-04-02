@@ -40,16 +40,31 @@ function [vx, vy, It] = computeFlow(x, y, t, pol, N, TH1, TH2, NCOLS, NROWS, tof
     It_neg=zeros(NROWS,NCOLS); % Matrix of timestamps of last event
     vx=zeros(NROWS,NCOLS); vy=zeros(NROWS,NCOLS);
 
+    jj = 1;
     for ii=toffset:1:length(t)
+       % Register all events that were sent previously or simultaneously
+       while jj < length(t) && t(jj) <= t(ii)
+          ptx=x(jj)+1;
+          pty=y(jj)+1;
+
+          % Separate estimations for positive and negative events
+          if pol(jj)==1
+             %update timestamp of last event for x,y position
+             It_pos(pty,ptx)=t(jj);
+          else
+             It_neg(pty,ptx)=t(jj);
+          end
+
+          jj = jj + 1;
+       end
+
        ptx=x(ii)+1;
        pty=y(ii)+1;
 
        % Separate estimations for positive and negative events
        if pol(ii)==1
-            It_pos(pty,ptx)=t(ii); %update timestamp of last event for x,y position
             m=It_pos(max(pty-N,1):min(pty+N, NROWS),max(ptx-N,1):min(ptx+N, NCOLS)); % get local timestamp patch around the event position
        else
-            It_neg(pty,ptx)=t(ii);
             m=It_neg(max(pty-N,1):min(pty+N, NROWS),max(ptx-N,1):min(ptx+N, NCOLS));
        end
 
