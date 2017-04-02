@@ -8,6 +8,7 @@
 %   TH2     - Threshold for refining 3D normal estimation (not used in this version).
 %   NCOLS   - Number of columns of image
 %   NROWS   - Number of rows of image
+%   toffset - Offset of first event for which a flow field should be computed
 %
 %
 % RETURN
@@ -28,14 +29,18 @@
 %   Copyright (C) 2015  Francisco Barranco, 10/10/2016, Universidad de Granada.
 %   License, GNU GPL, free software, without any warranty.
 %
-function [vx, vy, It] = computeFlow(x, y, t, pol, N, TH1, TH2, NCOLS, NROWS)
+function [vx, vy, It] = computeFlow(x, y, t, pol, N, TH1, TH2, NCOLS, NROWS, toffset)
+
+    if (nargin < 10)
+        toffset = 1;
+    end
 
     % Initialization
     It_pos=zeros(NROWS,NCOLS); % Matrix of timestamps of last event
     It_neg=zeros(NROWS,NCOLS); % Matrix of timestamps of last event
     vx=zeros(NROWS,NCOLS); vy=zeros(NROWS,NCOLS);
 
-    for ii=1:1:length(t)
+    for ii=toffset:1:length(t)
        ptx=x(ii)+1;
        pty=y(ii)+1;
 
