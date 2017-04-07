@@ -7,3 +7,16 @@
 
 \section{Camera Calibration}
 \label{sec:calibration}
+
+\section{Labeling}
+\label{sec:labeling}
+
+The data is first manually labeled with a specifically written labeling program that allows marking the beginning and end of a gesture with a precision of about 0.1 seconds.
+
+In the training phase, each event is labeled with a gesture or an extra no-gesture label.
+To ensure that each timeslice lies wholly within a gesture's boundaries, we keep a buffer of 100 milliseconds to the beginning as well as the end of a gesture.
+Events in this buffer zone are marked with the no-gesture label.
+This prevents two problems.
+First, the precision of the manual start and end markers is in the 100ms range, so this buffer ensures that the events truly belong to the gesture.
+Second
+Without this correction we would label a timeslice with a gesture even though only the first few events actually belong to this gesture and
