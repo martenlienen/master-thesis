@@ -1,0 +1,28 @@
+# Interactive Development
+ipython
+ipdb
+jupyter
+
+# Algebra/Computations
+numpy
+scipy
+# Pillow is required for image related functionality
+Pillow
+
+# Plotting/Visualization
+matplotlib
+PyQt5
+
+# Data Handling
+pandas
+
+# General Learning
+scikit-learn
+
+# Neural Networks
+tensorflow
+keras
+h5py
+
+# Progress bar
+tqdm
