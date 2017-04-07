@@ -12,3 +12,10 @@
 *.run.xml
 *.synctex.gz
 *.toc
+
+# Python environment marker
+.python-version
+
+# Python artifacts
+__pycache__
+.ipynb_checkpoints
