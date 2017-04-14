@@ -96,6 +96,9 @@ void DAVISWindow::paintFrame() {
     dc.DrawBitmap(bm, 0, 0, false);
   }
 
+  const auto X_MAX = X_RANGE - 1;
+  const auto Y_MAX = Y_RANGE - 1;
+
   if (this->events) {
     const auto width_ratio = width / X_RANGE;
     const auto height_ratio = height / Y_RANGE;
@@ -108,8 +111,8 @@ void DAVISWindow::paintFrame() {
     for (std::size_t i = start; i < end; ++i) {
       const auto &e = (*this->events)[i];
 
-      const float x = (X_RANGE - e.x) * width_ratio;
-      const float y = (Y_RANGE - e.y) * height_ratio;
+      const float x = (X_MAX - e.x) * width_ratio;
+      const float y = (Y_MAX - e.y) * height_ratio;
 
       if (e.parity) {
         dc.SetPen(*wxGREEN_PEN);
