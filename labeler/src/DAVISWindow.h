@@ -12,9 +12,6 @@ namespace labeler {
 
 class DAVISWindow : public wxWindow {
 public:
-  const float X_RANGE = 240.0;
-  const float Y_RANGE = 180.0;
-
   DAVISWindow(wxWindow *parent, wxWindowID id, const wxPoint &pos,
               const wxSize &size, long style, const wxString &name);
 
@@ -23,11 +20,16 @@ public:
 
   void setTime(const std::uint64_t time);
   void setEventAccumulationTime(const std::uint64_t time);
+  void setXRange(const float x_range);
+  void setYRange(const float y_range);
 
 protected:
   virtual wxSize DoGetBestSize() const;
 
 private:
+  float x_range = 240.0;
+  float y_range = 180.0;
+
   const std::vector<StreamEvent> *events;
   const std::vector<StreamFrame> *frames;
   std::size_t frame_index;

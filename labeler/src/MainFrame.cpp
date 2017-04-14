@@ -241,6 +241,12 @@ void MainFrame::openRecordings(const boost::filesystem::path dir) {
 
   auto frames_future = std::async([frames_path]() {
     std::vector<StreamFrame> frames;
+
+    // In a DVS recording there are no frames
+    if (!boost::filesystem::exists(frames_path)) {
+      return frames;
+    }
+
     boost::filesystem::directory_iterator it(frames_path);
     for (auto &dir_entry : boost::make_iterator_range(it, {})) {
       auto frame_path = dir_entry.path();
@@ -308,11 +314,27 @@ void MainFrame::openRecordings(const boost::filesystem::path dir) {
             });
 
   this->davis->reset(&events, &frames);
+  const auto max_x = std::max_element(
+      std::begin(events), std::end(events),
+      [](const StreamEvent a, const StreamEvent b) { return a.x < b.x; });
+  if (max_x != std::end(events) && max_x->x < 128) {
+    // DVS
+    this->davis->setXRange(128.0);
+    this->davis->setYRange(128.0);
+  } else {
+    // DAVIS
+    this->davis->setXRange(240.0);
+    this->davis->setYRange(180.0);
+  }
 
-  this->min_time =
-      std::min(this->events[0].timestamp, this->frames[0].timestamp);
-  this->max_time =
-      std::max(this->events.back().timestamp, this->frames.back().timestamp);
+  this->min_time = this->events[0].timestamp;
+  this->max_time = this->events.back().timestamp;
+
+  if (this->frames.size() > 0) {
+    this->min_time = std::min(this->min_time, this->frames[0].timestamp);
+    this->max_time = std::max(this->max_time, this->frames.back().timestamp);
+  }
+
   this->time = this->min_time;
 
   // Shift the range to start at 0 because for long recordings the timestamps

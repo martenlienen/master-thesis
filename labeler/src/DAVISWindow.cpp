@@ -15,24 +15,29 @@ DAVISWindow::DAVISWindow(wxWindow *parent, wxWindowID id, const wxPoint &pos,
 
 void DAVISWindow::reset(const std::vector<StreamEvent> *events,
                         const std::vector<StreamFrame> *frames) {
-  if (!events || !frames || events->size() == 0 || frames->size() == 0) {
+  if (!events || events->size() == 0) {
     this->events = nullptr;
-    this->frames = nullptr;
-    this->frame_index = -1;
     this->events_start = -1;
     this->events_end = -1;
-    return;
+  } else {
+    this->events = events;
+    this->events_start = 0;
+    this->events_end = 0;
   }
 
-  this->events = events;
-  this->frames = frames;
-  this->frame_index = 0;
-  this->events_start = 0;
-  this->events_end = 0;
+  if (!frames || frames->size() == 0) {
+    this->frames = nullptr;
+    this->frame_index = -1;
+  } else {
+    this->frames = frames;
+    this->frame_index = 0;
+  }
 
-  while ((*this->events)[this->events_end].timestamp <
-         (*this->frames)[0].timestamp) {
-    ++this->events_end;
+  if (this->events && this->frames) {
+    while ((*this->events)[this->events_end].timestamp <
+           (*this->frames)[0].timestamp) {
+      ++this->events_end;
+    }
   }
 
   this->InvalidateBestSize();
@@ -69,6 +74,9 @@ void DAVISWindow::setEventAccumulationTime(const std::uint64_t time) {
   this->event_accumulation_time = time;
 }
 
+void DAVISWindow::setXRange(const float x_range) { this->x_range = x_range; }
+void DAVISWindow::setYRange(const float y_range) { this->y_range = y_range; }
+
 wxSize DAVISWindow::DoGetBestSize() const {
   if (this->frames && this->frames->size() > 0) {
     return wxSize((*this->frames)[0].frame.cols, (*this->frames)[0].frame.rows);
@@ -96,6 +104,8 @@ void DAVISWindow::paintFrame() {
     dc.DrawBitmap(bm, 0, 0, false);
   }
 
+  const auto X_RANGE = this->x_range;
+  const auto Y_RANGE = this->y_range;
   const auto X_MAX = X_RANGE - 1;
   const auto Y_MAX = Y_RANGE - 1;
 
