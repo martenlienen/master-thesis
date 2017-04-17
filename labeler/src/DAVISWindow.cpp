@@ -91,17 +91,29 @@ void DAVISWindow::paintFrame() {
 
   int width, height;
   this->GetClientSize(&width, &height);
+  const float aspect_ratio = (float)width / (float)height;
 
   if (this->frames) {
     const auto index = std::min(this->frame_index, this->frames->size() - 1);
     const auto &frame = (*this->frames)[index].frame;
+    const float frame_as = frame.cols / (float)frame.rows;
+    int x_offset = 0, y_offset = 0;
+    int im_width = width, im_height = height;
+
+    if (frame_as > aspect_ratio) {
+      im_height = im_width / frame_as;
+      y_offset = (height - im_height) / 2;
+    } else {
+      im_width = im_height * frame_as;
+      x_offset = (width - im_width) / 2;
+    }
 
     // Scale to client size
     wxImage im(frame.cols, frame.rows, frame.data, true);
-    im = im.Scale(width, height);
+    im = im.Scale(im_width, im_height);
 
     wxBitmap bm(im);
-    dc.DrawBitmap(bm, 0, 0, false);
+    dc.DrawBitmap(bm, x_offset, y_offset, false);
   }
 
   const auto X_RANGE = this->x_range;
@@ -110,10 +122,22 @@ void DAVISWindow::paintFrame() {
   const auto Y_MAX = Y_RANGE - 1;
 
   if (this->events) {
-    const auto width_ratio = width / X_RANGE;
-    const auto height_ratio = height / Y_RANGE;
-    const auto pixel_width = (wxCoord)std::max(width_ratio, 1.0f);
-    const auto pixel_height = (wxCoord)std::max(height_ratio, 1.0f);
+    const float event_as = X_RANGE / (float)Y_RANGE;
+    int x_offset = 0, y_offset = 0;
+    auto width_ratio = width / X_RANGE;
+    auto height_ratio = height / Y_RANGE;
+    auto pixel_width = (wxCoord)std::max(width_ratio, 1.0f);
+    auto pixel_height = (wxCoord)std::max(height_ratio, 1.0f);
+
+    if (event_as > aspect_ratio) {
+      height_ratio = width_ratio;
+      pixel_height = pixel_width;
+      y_offset = (height - Y_RANGE * height_ratio) / 2;
+    } else {
+      width_ratio = height_ratio;
+      pixel_width = pixel_height;
+      x_offset = (width - X_RANGE * width_ratio) / 2;
+    }
 
     const auto end = std::min(this->events->size() - 1, this->events_end);
     const auto start = std::min(end, this->events_start);
@@ -121,8 +145,8 @@ void DAVISWindow::paintFrame() {
     for (std::size_t i = start; i < end; ++i) {
       const auto &e = (*this->events)[i];
 
-      const float x = (X_MAX - e.x) * width_ratio;
-      const float y = (Y_MAX - e.y) * height_ratio;
+      const float x = (X_MAX - e.x) * width_ratio + x_offset;
+      const float y = (Y_MAX - e.y) * height_ratio + y_offset;
 
       if (e.parity) {
         dc.SetPen(*wxGREEN_PEN);
