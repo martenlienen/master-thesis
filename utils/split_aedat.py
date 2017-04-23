@@ -5,29 +5,36 @@ import csv
 import os
 import sys
 
-import aerv1
-import aerv2
+import aer
 from scipy.misc import imsave
 
 
 def main():
     parser = argparse.ArgumentParser(
         description="Split an .aedat file into a list of events and frames.")
+    parser.add_argument(
+        "-c",
+        "--chip",
+        default="DVS",
+        choices=["DVS", "DAVIS"],
+        help="Type of chip that generated the events")
     parser.add_argument("aedat", help=".aedat file to split")
     parser.add_argument("out_dir", help="Output directory")
     args = parser.parse_args()
 
+    chip_class = args.chip
     aedat_file = args.aedat
     out_dir = args.out_dir
 
     if not os.path.isfile(aedat_file):
         sys.exit("AEDat file {} does not exist".format(aedat_file))
 
-    if os.path.exists(out_dir):
-        sys.exit("Output directory {} already exists".format(out_dir))
-
     events_path = os.path.join(out_dir, "events.csv")
     frames_dir = os.path.join(out_dir, "frames")
+
+    if os.path.exists(events_path) or os.path.exists(frames_dir):
+        sys.exit(
+            "Output directory {} already contains event data".format(out_dir))
 
     os.makedirs(frames_dir)
 
@@ -36,12 +43,9 @@ def main():
         events_writer.writerow(["timestamp", "x", "y", "parity"])
 
         try:
-            events = aerv1.read(aedat_file)
-        except:
-            try:
-                events = aerv2.read(aedat_file)
-            except:
-                sys.exit("Could not read AER file {}".format(aedat_file))
+            events = aer.read(aedat_file, chip_class)
+        except Exception as e:
+            sys.exit(e)
 
         for evt_type, timestamp, data in events:
             if evt_type == "ADS":
