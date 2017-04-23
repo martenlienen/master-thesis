@@ -7,6 +7,7 @@ import sys
 
 import aer
 from scipy.misc import imsave
+import pandas as pd
 
 
 def main():
@@ -57,6 +58,18 @@ def main():
                 imsave(frame_path, data)
             elif evt_type == "DVS":
                 events_writer.writerow([timestamp, *data])
+
+    # Filter events that happended before the first event. This happended in a
+    # DVS recording and the timestamps of some events were corrupted.
+    events = pd.read_csv(events_path)
+    first_ts = events.iloc[0]["timestamp"]
+    events = events.loc[events["timestamp"] >= first_ts]
+
+    # Ensure that the remaining events are sorted
+    events = events.sort_values(by="timestamp")
+
+    # Save back to CSV
+    events.to_csv(events_path, index=False)
 
 
 if __name__ == "__main__":
