@@ -53,6 +53,7 @@ MainFrame::MainFrame()
                  this->ip = dlg->ip;
                  this->port = dlg->port;
                  this->instruction_dir = dlg->instruction_dir;
+                 this->logging_dir = dlg->logging_dir;
                  this->gestures = dlg->gestures;
 
                  this->startRecording();
@@ -89,7 +90,7 @@ void MainFrame::startRecording() {
   auto now = std::time(nullptr);
   auto tm = *std::localtime(&now);
   std::stringstream filename;
-  filename << "C:\\Users\\cqql\\Desktop\\" << this->subject << "-"
+  filename << this->logging_dir << this->subject << "-"
            << std::put_time(&tm, "%Y%m%d-%H%M%S") << ".aedat";
   this->sendCommand("startlogging " + filename.str());
 

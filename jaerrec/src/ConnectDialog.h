@@ -15,6 +15,7 @@ public:
   std::uint16_t port = 8997;
   std::string path = "";
   std::string instruction_dir = "";
+  std::string logging_dir = "C:\\";
   std::vector<std::string> gestures;
 
   ConnectDialog(wxWindow *parent);

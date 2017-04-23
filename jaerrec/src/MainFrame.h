@@ -28,6 +28,7 @@ private:
   std::uint16_t port = 8997;
   std::vector<std::string> gestures;
   std::string instruction_dir = "";
+  std::string logging_dir = "C:\\";
 
   int curr_gesture = -1;
 

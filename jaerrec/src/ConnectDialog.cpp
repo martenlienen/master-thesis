@@ -31,12 +31,20 @@ ConnectDialog::ConnectDialog(wxWindow *parent)
                            wxDefaultSize, wxFLP_USE_TEXTCTRL);
   // The constructor does not update the text field
   gesture_input->SetPath(this->path);
+
   auto dir_label = new wxStaticText(this, wxID_ANY, "Instruction Videos");
   auto dir_input = new wxDirPickerCtrl(this, wxID_ANY, this->instruction_dir,
                                        "", wxDefaultPosition, wxDefaultSize,
                                        wxDIRP_USE_TEXTCTRL);
   // The constructor does not update the text field
   dir_input->SetPath(this->instruction_dir);
+
+  auto logging_dir_label = new wxStaticText(this, wxID_ANY, "jAER Logging Directory");
+  auto logging_dir_input = new wxDirPickerCtrl(this, wxID_ANY, this->logging_dir,
+                                       "", wxDefaultPosition, wxDefaultSize,
+                                       wxDIRP_USE_TEXTCTRL);
+  // The constructor does not update the text field
+  logging_dir_input->SetPath(this->logging_dir);
 
   auto ok_button = new wxButton(this, wxID_OK, "OK");
   auto cancel_button = new wxButton(this, wxID_CANCEL, "Cancel");
@@ -57,6 +65,8 @@ ConnectDialog::ConnectDialog(wxWindow *parent)
   form_sizer->Add(gesture_input, center_flags);
   form_sizer->Add(dir_label, center_flags);
   form_sizer->Add(dir_input, center_flags);
+  form_sizer->Add(logging_dir_label, center_flags);
+  form_sizer->Add(logging_dir_input, center_flags);
   button_sizer->Add(ok_button);
   button_sizer->Add(cancel_button);
   main_sizer->Add(form_sizer, expand_flags);
@@ -78,6 +88,9 @@ ConnectDialog::ConnectDialog(wxWindow *parent)
       [this](wxFileDirPickerEvent &e) { this->path = e.GetPath(); });
   dir_input->Bind(wxEVT_DIRPICKER_CHANGED, [this](wxFileDirPickerEvent &e) {
     this->instruction_dir = e.GetPath();
+  });
+  logging_dir_input->Bind(wxEVT_DIRPICKER_CHANGED, [this](wxFileDirPickerEvent &e) {
+    this->logging_dir = e.GetPath();
   });
 
   ok_button->Bind(wxEVT_BUTTON, [this](wxCommandEvent &e) {
