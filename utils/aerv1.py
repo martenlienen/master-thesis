@@ -15,6 +15,18 @@ def read(aedat_file):
         if version_line != b"#!AER-DAT1.0\r\n":
             raise Exception("Can only read version 1.0")
 
+        # Discard comment lines
+        while True:
+            byte = f.peek(1)
+
+            if len(byte) < 1:
+                raise Exception("Could not read from file")
+
+            if byte[0:1] == b"#":
+                f.readline()
+            else:
+                break
+
         while True:
             event = f.read(6)
             if len(event) < 6:
