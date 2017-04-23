@@ -5,17 +5,13 @@ import random
 
 DIRECTIONS = ["up", "down", "left", "right"]
 GESTURES = []
-GESTURES += ["hand-{}".format(d) for d in DIRECTIONS]
 GESTURES += ["two-fingers-{}".format(d) for d in DIRECTIONS]
 GESTURES += ["tap-index", "tap-two-fingers"]
-GESTURES += ["beckoning"]
-GESTURES += ["open-hand", "close-hand", "close-hand-twice"]
 GESTURES += ["extend-one", "extend-two", "extend-three"]
 GESTURES += ["push-hand-{}".format(d) for d in DIRECTIONS]
-GESTURES += ["rotate-{}".format(d) for d in ["clockwise", "counterclockwise"]]
-GESTURES += ["thumbs-up"]
-GESTURES += ["ok"]
 GESTURES += ["swipe-{}".format(d) for d in DIRECTIONS]
+GESTURES += ["zoom-in", "zoom-out", "grab", "finger-snap"]
+GESTURES += ["beckoning", "rotate-outward", "thumbs-up", "ok"]
 
 
 def main():
