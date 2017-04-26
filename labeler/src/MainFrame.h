@@ -22,6 +22,9 @@ enum LabelingState { NONE, FINDING_START, FINDING_END };
 
 class MainFrame : public wxFrame {
 public:
+  const float NORMAL_SPEED = 1.5;
+  const float SLOW_MOTION_SPEED = 0.5;
+
   MainFrame();
 
 private:

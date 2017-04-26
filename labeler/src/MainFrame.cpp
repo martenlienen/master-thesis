@@ -163,18 +163,18 @@ MainFrame::MainFrame() : wxFrame(NULL, wxID_ANY, "Label Stuff!") {
   slower_button->Bind(wxEVT_BUTTON,
                       [this](const wxCommandEvent &e) { this->slower(); });
   reset_speed_button->Bind(
-      wxEVT_BUTTON, [this](const wxCommandEvent &e) { this->setSpeed(1.0); });
+      wxEVT_BUTTON, [this](const wxCommandEvent &e) { this->setSpeed(NORMAL_SPEED); });
 
   this->label_button->Bind(wxEVT_BUTTON, [this](const wxCommandEvent &e) {
     if (this->labeling_state == NONE) {
       this->labeling_state = FINDING_START;
 
-      this->setSpeed(-0.2);
+      this->setSpeed(-SLOW_MOTION_SPEED);
     } else if (this->labeling_state == FINDING_START) {
       this->labeling_state = FINDING_END;
       this->candidate_label.start = this->time;
 
-      this->setSpeed(0.2);
+      this->setSpeed(SLOW_MOTION_SPEED);
     } else {
       this->labeling_state = NONE;
       this->candidate_label.end = this->time;
@@ -193,7 +193,7 @@ MainFrame::MainFrame() : wxFrame(NULL, wxID_ANY, "Label Stuff!") {
         this->label_input->SetSelection(selection + 1);
       }
 
-      this->setSpeed(1.0);
+      this->setSpeed(NORMAL_SPEED);
       this->play();
     }
 
