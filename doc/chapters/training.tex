@@ -1,0 +1,14 @@
+%%% -*- TeX-master: "../main" -*-
+\chapter{Model Training}
+\label{chapter:training}
+
+\section{Convolutional Neural Networks}
+
+\section{Long Short-Term Memory}
+
+\section{Connectionist Temporal Classification}
+
+Training with categorical cross entropy tries to categorize short windows of events correctly.
+However, this is not actually what we want and may also be impossible to do.
+For example, the gestures extend-index-finger and tap-index-finger start the exact same way, so the first few events are not distinguishable.
+With CTC we might be able to get the network to stay quiet until it is sure, which type of gesture it is, instead of forcing it to predict one of them at inappropriate times.
