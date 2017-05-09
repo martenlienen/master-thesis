@@ -5,9 +5,6 @@
 \section{Recording Setup}
 \label{sec:setup}
 
-\section{Camera Calibration}
-\label{sec:calibration}
-
 \section{Labeling}
 \label{sec:labeling}
 
@@ -20,3 +17,32 @@ This prevents two problems.
 First, the precision of the manual start and end markers is in the 100ms range, so this buffer ensures that the events truly belong to the gesture.
 Second
 Without this correction we would label a timeslice with a gesture even though only the first few events actually belong to this gesture and
+
+\section{Thoughts}
+\label{sec:thoughts}
+
+We have segmentations of several recordings, but in the end we actually just want to recreate the recording log, because we are not actually interested in which event belongs to which gesture but just which gesture was performed.
+That brings us to CTC.
+
+One large LSTM layer works better than multiple small/medium ones stacked.
+
+The recordings are sensitive to the lighting conditions even though the DVS is has a high dynamic range.
+This is because lighting can create virtual edges between light and dark on otherwise smooth surfaces that are then picked up by the camera.
+
+The low resolution of the DVS forbids recordings from a distance greater than \~ 50 centimeters because not only does the object become very small but also there are a lot less events because the difference between light and dark decreases for the DVS.
+Also there seems to be less noise on the outskirts of the picture, when the hand is closer to the camera.
+For large distances the general amount of noise is just ridiculous.
+
+A distance of around 40 centimeters seems optimal, because it is close enough for significant signal, but not so close that the hand leaves the field of view during some of the gestures.
+
+\section{Effect of Distance to Camera}
+\label{sec:distances}
+
+\begin{figure}
+  \centering
+  \includegraphics[width=\textwidth]{figures/distances}
+  \caption{Event density in \nicefrac{\#}{0.1s}. All three recordings have a constant
+    baseline of noise at about 1000 events per 100ms. The gestures performed at a
+    distance of 80cm are not really distinguishable from the background noise
+    anymore and it is hard to recognize anything even for humans, so we exlude them.}
+\end{figure}
