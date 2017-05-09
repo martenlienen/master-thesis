@@ -236,6 +236,7 @@ void MainFrame::openRecordings(const boost::filesystem::path dir) {
     } catch (io::error::base &e) {
       // Something is wrong with the csv file. Ignore.
       std::cout << e.what() << std::endl;
+      return std::vector<StreamEvent>();
     }
   });
 
