@@ -148,12 +148,16 @@ void DAVISWindow::paintFrame() {
       const float x = (X_MAX - e.x) * width_ratio + x_offset;
       const float y = (Y_MAX - e.y) * height_ratio + y_offset;
 
-      if (e.parity) {
+      if (e.parity == 1) {
         dc.SetPen(*wxGREEN_PEN);
         dc.SetBrush(*wxGREEN_BRUSH);
-      } else {
+      } else if (e.parity == 0) {
         dc.SetPen(*wxRED_PEN);
         dc.SetBrush(*wxRED_BRUSH);
+      } else {
+        // Special events that were generated for plotting
+        dc.SetPen(*wxBLUE_PEN);
+        dc.SetBrush(*wxBLUE_BRUSH);
       }
 
       dc.DrawRectangle((wxCoord)x, (wxCoord)y, pixel_width, pixel_height);
