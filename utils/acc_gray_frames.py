@@ -64,8 +64,8 @@ def main():
     num_frames = math.ceil((max_t - min_t) / window_length)
 
     print("Prepare data")
-    events["parity"][events["parity"] == 0] = -1
-    events["parity"] *= (1.0 / 200)
+    events["polarity"][events["polarity"] == 0] = -1
+    events["polarity"] *= (1.0 / 200)
 
     print("Accumulate event frames")
     frames = [None for i in range(num_frames)]
@@ -75,7 +75,7 @@ def main():
         data = events.iloc[tstart:tend]
 
         # Sum up all pixels
-        sums = data.groupby(by=("x", "y"))["parity"].sum()
+        sums = data.groupby(by=("x", "y"))["polarity"].sum()
         sums = sums.clip(lower=-0.5, upper=0.5)
 
         rows = [pair[1] for pair in sums.index.values]

@@ -14,7 +14,7 @@ struct StreamEvent {
   std::uint64_t timestamp;
   std::uint16_t x;
   std::uint16_t y;
-  std::uint8_t parity;
+  std::uint8_t polarity;
 };
 
 struct StreamLabel {

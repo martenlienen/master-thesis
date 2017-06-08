@@ -11,7 +11,7 @@ typedef edvs_event_t Event;
 
 inline std::ostream &operator<<(std::ostream &os, const Edvs::Event &e) {
   os << "[t=" << e.t << ", id=" << static_cast<unsigned int>(e.id)
-     << ", p=" << static_cast<unsigned int>(e.parity) << ", (" << e.x << ", "
+     << ", p=" << static_cast<unsigned int>(e.polarity) << ", (" << e.x << ", "
      << e.y << ")]";
   return os;
 }
@@ -31,12 +31,12 @@ struct EventF {
   // event pixel coordinate
   float x, y;
 
-  // parity
-  bool parity;
+  // polarity
+  bool polarity;
 
   friend inline std::ostream &operator<<(std::ostream &os,
                                          const Edvs::EventF &e) {
-    os << "[t=" << e.time << ", id=" << e.id << ", p=" << e.parity << ", ("
+    os << "[t=" << e.time << ", id=" << e.id << ", p=" << e.polarity << ", ("
        << e.x << ", " << e.y << ")]";
     return os;
   }

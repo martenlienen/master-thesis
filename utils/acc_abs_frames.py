@@ -71,7 +71,7 @@ def main():
         data = events.iloc[tstart:tend]
 
         # Count events per pixel
-        counts = data.groupby(by=("x", "y"))["parity"].count()
+        counts = data.groupby(by=("x", "y"))["polarity"].count()
 
         rows = [pair[1] for pair in counts.index.values]
         cols = [pair[0] for pair in counts.index.values]

@@ -14,7 +14,7 @@ extern "C" {
 typedef struct {
   uint64_t t;
   uint16_t x, y;
-  uint8_t parity;
+  uint8_t polarity;
   uint8_t id;
 } edvs_event_t;
 

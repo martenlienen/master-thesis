@@ -18,7 +18,7 @@ AedatStorage::AedatStorage(std::string path)
 
 void AedatStorage::write(edvs_event_t event) {
   uint32_t timestamp = event.t;
-  uint16_t address = (event.y << 8) | (event.x << 1) | event.parity;
+  uint16_t address = (event.y << 8) | (event.x << 1) | event.polarity;
 
   // Write bytes in big-endian order
   this->stream.write(reinterpret_cast<char *>(&address) + 1, 1);

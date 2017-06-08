@@ -21,13 +21,13 @@ def read(f, chip_class):
         TYPE_MASK = (0x1 << 31, 31)
         Y_COORD_MASK = (0x1FF << 22, 22)
         X_COORD_MASK = (0x1FF << 12, 12)
-        PARITY_MASK = (0x1 << 11, 11)
+        POLARITY_MASK = (0x1 << 11, 11)
         READ_EXT_MASK = (0x1 << 10, 10)
         ADC_MASK = (0x3FF, 0)
     else:
         Y_COORD_MASK = (0x7F << 8, 8)
         X_COORD_MASK = (0x7F << 1, 1)
-        PARITY_MASK = (0x1 << 0, 0)
+        POLARITY_MASK = (0x1 << 0, 0)
         READ_EXT_MASK = (0x1 << 15, 15)
 
         # The following things do not exist in the DVS format
@@ -44,12 +44,12 @@ def read(f, chip_class):
         evt_type = (address & TYPE_MASK[0]) >> TYPE_MASK[1]
         x = (address & X_COORD_MASK[0]) >> X_COORD_MASK[1]
         y = (address & Y_COORD_MASK[0]) >> Y_COORD_MASK[1]
-        parity = (address & PARITY_MASK[0]) >> PARITY_MASK[1]
+        polarity = (address & POLARITY_MASK[0]) >> POLARITY_MASK[1]
         read_external = (address & READ_EXT_MASK[0]) >> READ_EXT_MASK[1]
         adc = (address & ADC_MASK[0]) >> ADC_MASK[1]
 
         if evt_type == TYPE_ADS:
-            if parity:
+            if polarity:
                 # It is an IMU event. Ignore.
                 pass
             else:
@@ -84,6 +84,6 @@ def read(f, chip_class):
                     reset_frame[y, x] = adc
                     reset_npixels += 1
         else:
-            # Filter non-parity events (external events)
+            # Filter non-polarity events (external events)
             if not read_external:
-                yield ("DVS", timestamp, (x, y, parity))
+                yield ("DVS", timestamp, (x, y, polarity))

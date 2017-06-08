@@ -18,6 +18,6 @@ def read(f):
 
         x = (address & 0xFE) >> 1
         y = address >> 8
-        parity = address & 0x1
+        polarity = address & 0x1
 
-        yield ("DVS", timestamp, (x, y, parity))
+        yield ("DVS", timestamp, (x, y, polarity))

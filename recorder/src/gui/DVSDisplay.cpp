@@ -62,7 +62,7 @@ void DVSDisplay::paintEvents() {
       int origin_x = (X_RANGE - x) * width / X_RANGE;
       int origin_y = (Y_RANGE - y) * height / Y_RANGE;
 
-      if (e.parity) {
+      if (e.polarity) {
         dc.SetPen(*wxBLACK_PEN);
         dc.SetBrush(*wxBLACK_BRUSH);
       } else {

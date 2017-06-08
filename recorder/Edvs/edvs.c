@@ -738,7 +738,7 @@ ssize_t edvs_device_streaming_read(edvs_device_streaming_t *s,
       event_it->t = timestamp;
       event_it->x = (uint16_t)(b & cLowerBitsMask);
       event_it->y = (uint16_t)(a & cLowerBitsMask);
-      event_it->parity = ((b & cHighBitMask) ? 1 : 0);
+      event_it->polarity = ((b & cHighBitMask) ? 1 : 0);
       event_it->id = 0;
       event_it++;
     }

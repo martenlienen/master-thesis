@@ -41,7 +41,7 @@ def main():
 
     with open(events_path, "w") as events_f:
         events_writer = csv.writer(events_f)
-        events_writer.writerow(["timestamp", "x", "y", "parity"])
+        events_writer.writerow(["timestamp", "x", "y", "polarity"])
 
         try:
             events = aer.read(aedat_file, chip_class)

@@ -225,12 +225,12 @@ void MainFrame::openRecordings(const boost::filesystem::path dir) {
       std::vector<StreamEvent> events;
       io::CSVReader<4> event_reader(events_path.string());
       event_reader.read_header(io::ignore_extra_column, "timestamp", "x", "y",
-                               "parity");
+                               "polarity");
       std::uint64_t timestamp;
       std::uint16_t x, y;
-      std::uint8_t parity;
-      while (event_reader.read_row(timestamp, x, y, parity)) {
-        events.push_back({timestamp, x, y, parity});
+      std::uint8_t polarity;
+      while (event_reader.read_row(timestamp, x, y, polarity)) {
+        events.push_back({timestamp, x, y, polarity});
       }
       return events;
     } catch (io::error::base &e) {
