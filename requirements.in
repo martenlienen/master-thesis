@@ -15,6 +15,7 @@ PyQt5
 
 # Data Handling
 pandas
+h5py
 
 # General Learning
 scikit-learn
@@ -22,7 +23,6 @@ scikit-learn
 # Neural Networks
 tensorflow
 keras
-h5py
 
 # Progress bar
 tqdm

@@ -6,6 +6,7 @@ import os
 import numpy as np
 import pandas as pd
 import scipy.io as sio
+import sklearn.preprocessing as sp
 from tqdm import tqdm
 
 
@@ -18,7 +19,7 @@ def label_events(events, label_spans, label_index):
 
     nevents = events.shape[0]
     nlabels = len(label_index)
-    labels = np.zeros((nevents, nlabels), dtype=np.float16)
+    labels = np.zeros(nevents, dtype=np.int32)
     timestamps = np.array(events["timestamp"])
     nspans = label_spans.shape[0]
     curr_index = None
@@ -43,7 +44,7 @@ def label_events(events, label_spans, label_index):
         elif curr_end is not None and t > curr_end:
             curr_label = "none"
 
-        labels[i, label_index.index(curr_label)] = 1.0
+        labels[i] = label_index.index(curr_label)
 
     return labels
 
@@ -74,6 +75,12 @@ def main():
         dest="balance",
         action="store_true",
         help="Balance classes by under- and oversampling")
+    parser.add_argument(
+        "--one-hot",
+        default=False,
+        dest="one_hot",
+        action="store_true",
+        help="1-hot encode labels")
     parser.add_argument("dirs", nargs="+", help="Directories with event data")
     parser.add_argument("out", help="File to save data to")
     args = parser.parse_args()
@@ -83,6 +90,7 @@ def main():
     load_filename = args.load
     remove_none = args.remove_none
     balance_classes = args.balance
+    one_hot_encode = args.one_hot
     dirs = args.dirs
     out_path = args.out
 
@@ -126,21 +134,21 @@ def main():
         # Convert event data to matrix
         features = [
             "delta-t", "delta-x-prev", "delta-x-mean", "delta-y-prev",
-            "delta-y-mean", "parity"
+            "delta-y-mean", "polarity"
         ]
         data = events[features].as_matrix()
 
         # Drop events that cannot be evenly split into a time slice
         nrest = data.shape[0] % timesteps
-        data = data[:-nrest, :]
-        labels = labels[:-nrest, :]
+        data = data[:-nrest]
+        labels = labels[:-nrest]
 
         # Reshape into time slices
         data = np.reshape(data, (-1, timesteps, len(features)))
-        labels = np.reshape(labels, (-1, timesteps, len(label_index)))
+        labels = np.reshape(labels, (-1, timesteps))
 
         # Select the middle label of each slice
-        labels = labels[:, timesteps // 2, :]
+        labels = labels[:, timesteps // 2]
 
         data_buf.append(data)
         label_buf.append(labels)
@@ -160,24 +168,23 @@ def main():
     if remove_none:
         # Remove all data points labeled with none
         none_index = label_index.index("none")
-        filt = np.logical_not(labels[:, none_index] == 1.0)
-        data = data[filt, :, :]
-        labels = labels[filt, :]
+        filt = np.logical_not(labels == none_index)
+        data = data[filt]
+        labels = labels[filt]
 
-        # Remove the none label from the index and its column
-        labels = np.delete(labels, none_index, axis=1)
+        # Remove the none label from the index
         del label_index[none_index]
 
     if balance_classes:
-        counts = np.sum(labels, axis=0, dtype=np.int32)
+        _, counts = np.unique(labels, return_counts=True)
         median = int(np.median(counts))
         too_few, = np.nonzero(counts < median)
-        too_many, = np.nonzero(counts > median)
+        too_many, = np.nonzero(counts > 2 * median)
 
         # Oversample classes that are underrepresented
         indices = []
         for i in too_few:
-            class_indices, = np.nonzero(labels[:, i] == 1.0)
+            class_indices, = np.nonzero(labels == i)
             missing = median - len(class_indices)
             indices.append(
                 np.random.choice(class_indices, size=missing, replace=True))
@@ -188,8 +195,8 @@ def main():
         # Undersample classes that are overrepresented
         indices = []
         for i in too_many:
-            class_indices, = np.nonzero(labels[:, i] == 1.0)
-            abundant = len(class_indices) - median
+            class_indices, = np.nonzero(labels == i)
+            abundant = len(class_indices) - 2 * median
             indices.append(
                 np.random.choice(class_indices, size=abundant, replace=False))
         to_remove = np.concatenate(indices)
@@ -198,8 +205,11 @@ def main():
 
     # Randomly permute sequences
     permutation = np.random.permutation(data.shape[0])
-    data = data[permutation, :, :]
-    labels = labels[permutation, :]
+    data = data[permutation]
+    labels = labels[permutation]
+
+    if one_hot_encode:
+        labels = sp.label_binarize(labels, classes=np.arange(len(label_index)))
 
     sio.savemat(out_path, {
         "labels": labels,
