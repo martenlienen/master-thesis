@@ -73,7 +73,7 @@ def main():
 
     # Compute quantiles for digitization of labels
     print("Compute quantiles...")
-    nbins = {"dt": 5, "dx-fast": 5, "dx-slow": 5, "dy-fast": 5, "dy-slow": 5}
+    nbins = {"dt": 2, "dx-fast": 2, "dx-slow": 2, "dy-fast": 2, "dy-slow": 2}
     bins = {}
     for col, n in nbins.items():
         coldat = np.concatenate([d[col].values for d in data])
