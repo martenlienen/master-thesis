@@ -107,6 +107,7 @@ def main():
 
         for i in range(len(data)):
             grp = f.create_group("recording-{}".format(i))
+            grp.attrs["directory"] = dirs[i]
             grp.create_dataset("timestamps", data=timestamps[i])
             grp.create_dataset("data", data=data[i])
             grp.create_dataset("labels", data=labels[i])

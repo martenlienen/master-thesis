@@ -69,6 +69,10 @@ class FrameEncoder:
                                                       sequence_length=self.seq_lengths,
                                                       initial_state=complete_state, dtype=tf.float32)
 
+            # Create nodes for easy loading of the graph
+            tf.concat([c for c, h in self.encoded_state], axis=1, name="encoded_state")
+            tf.concat([h for c, h in self.encoded_state], axis=1, name="encoded_output")
+
         with tf.variable_scope("decoder"):
             decode_inputs = tf.concat([tf.constant(np.zeros((self.inputs.shape[0], 1, event_size), np.float32)),
                                        self.inputs[:, :-1, :]], axis=1)
@@ -82,8 +86,9 @@ class FrameEncoder:
                                                     sequence_length=self.seq_lengths,
                                                     initial_state=self.encoded_state, dtype=tf.float32)
 
-            self.final_state = tf.concat([c for c, h in state], axis=1)
-            self.final_output = tf.concat([h for c, h in state], axis=1)
+            self.final_state = tf.concat([c for c, h in state], axis=1, name="final_state")
+            self.final_output = tf.concat([h for c, h in state], axis=1, name="final_output")
+
 
 
 def main():
