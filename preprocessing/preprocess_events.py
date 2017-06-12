@@ -44,11 +44,6 @@ def main():
     # Read events
     events = pd.read_csv(events_path)
 
-    # Normalize timestamps so that each recording starts at 0. This also makes
-    # timestamp fit into an int32 as long as the recording is shorter than ~40
-    # minutes.
-    events["timestamp"] -= events["timestamp"].min()
-
     # Preprocess events
 
     # Compute time since previous event

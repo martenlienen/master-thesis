@@ -48,14 +48,13 @@ def main():
         except Exception as e:
             sys.exit(e)
 
+        frames = []
         for evt_type, timestamp, data in events:
             if evt_type == "ADS":
                 # DVS puts bottom-left at (0, 0)
                 data = np.flipud(data)
 
-                frame_path = os.path.join(frames_dir,
-                                          "{}.png".format(timestamp))
-                imsave(frame_path, data)
+                frames.append((timestamp, data))
             elif evt_type == "DVS":
                 events_writer.writerow([timestamp, *data])
 
@@ -68,8 +67,21 @@ def main():
     # Ensure that the remaining events are sorted
     events = events.sort_values(by="timestamp")
 
+    # Normalize timestamps so that each recording starts at 0. This also makes
+    # timestamp fit into an int32 as long as the recording is shorter than ~40
+    # minutes.
+    min_time = events["timestamp"].min()
+    events["timestamp"] -= min_time
+    for i in range(len(frames)):
+        frames[i][0] -= min_time
+
     # Save back to CSV
     events.to_csv(events_path, index=False)
+
+    # Save frames
+    for timestamp, data in frames:
+        frame_path = os.path.join(frames_dir, "{}.png".format(timestamp))
+        imsave(frame_path, data)
 
 
 if __name__ == "__main__":
