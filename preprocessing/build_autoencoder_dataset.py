@@ -52,8 +52,6 @@ def main():
         "--load",
         default="preprocessed.csv",
         help="Event file to load from each directory")
-    parser.add_argument("--x-bins", default=32, type=int, help="Number of bins in x-direction")
-    parser.add_argument("--y-bins", default=32, type=int, help="Number of bins in y-direction")
     parser.add_argument("dirs", nargs="+", help="Directories with event data")
     parser.add_argument("out", help="File to save data to")
     args = parser.parse_args()
