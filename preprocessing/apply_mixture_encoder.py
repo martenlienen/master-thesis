@@ -85,24 +85,8 @@ def main():
     sequences = g.get_tensor_by_name("sequences:0")
     sequence_lengths = g.get_tensor_by_name("sequence_lengths:0")
     initial_state = g.get_tensor_by_name("encoder/initial_state:0")
-    initial_output = g.get_tensor_by_name("encoder/initial_output:0")
-    final_state = g.get_tensor_by_name("decoder/concat_2:0")
-    final_output = g.get_tensor_by_name("decoder/concat_3:0")
-
-    state_tensors = []
-    try:
-        i = 2
-        while True:
-            state_tensors.append(g.get_tensor_by_name("encoder/rnn/while/Exit_{}:0".format(i)))
-            i += 1
-    except KeyError:
-        pass
-    encoded_state = tf.concat([state_tensors[i]
-                               for i in range(len(state_tensors))
-                               if i % 2 == 0], axis=1)
-    encoded_output = tf.concat([state_tensors[i]
-                                for i in range(len(state_tensors))
-                                if i % 2 == 1], axis=1)
+    encoded_state = g.get_tensor_by_name("encoder/encoded_state:0")
+    final_state = g.get_tensor_by_name("decoder/final_state:0")
 
     directories, timestamps, data = read_data(dataset_path)
 
@@ -112,18 +96,15 @@ def main():
         for i in tqdm(range(len(directories)), desc="Directories"):
             encoded_timestamps = []
             encoded_states = []
-            encoded_outputs = []
 
             total_batches = int(np.ceil((timestamps[i][-1] - timestamps[i][0]) / (length * batch_size)))
             for batch_timestamps, seq_lengths, batch in tqdm(iterate_data(batch_size, length, timestamps[i], data[i]), desc="Batches", total=total_batches):
                 chunk_state = None
-                chunk_input = None
                 batch_encoded_states = None
-                batch_encoded_outputs = None
                 max_length = np.max(seq_lengths)
                 offset = 0
-                # We run this loop at least once so that the states and outputs
-                # are computed correctly for batches that are completely empty
+                # We run this loop at least once so that the states are
+                # computed correctly for batches that are completely empty
                 while np.any(seq_lengths > 0) or offset == 0:
                     chunk_lengths = np.minimum(chunk_size, seq_lengths)
                     chunk_data = batch[:, offset:min(offset + chunk_size, max_length), :]
@@ -131,27 +112,28 @@ def main():
                     feeds = {sequences: chunk_data, sequence_lengths: chunk_lengths}
                     if chunk_state is not None:
                         feeds[initial_state] = chunk_state
-                    if chunk_input is not None:
-                        feeds[initial_output] = chunk_input
 
-                    chunk_state, chunk_input, batch_encoded_states, batch_encoded_outputs = sess.run([final_state, final_output, encoded_state, encoded_output], feeds)
+                    chunk_state, batch_encoded_states = sess.run([final_state, encoded_state], feeds)
 
                     offset += chunk_size
                     seq_lengths = np.maximum(0, seq_lengths - chunk_size)
 
                 encoded_timestamps.append(batch_timestamps)
                 encoded_states.append(batch_encoded_states)
-                encoded_outputs.append(batch_encoded_outputs)
 
             encoded_timestamps = np.concatenate(encoded_timestamps, axis=0)
             encoded_states = np.concatenate(encoded_states, axis=0)
-            encoded_outputs = np.concatenate(encoded_outputs, axis=0)
 
             with h5.File(out_path, "a") as f:
-                grp = f.create_group("recording-{}".format(i))
+                if "recordings" in f:
+                    collection = f["recordings"]
+                else:
+                    collection = f.create_group("recordings")
+
+                grp = collection.create_group(str(i))
+                grp.attrs["directory"] = directories[i]
                 grp.create_dataset("timestamps", data=encoded_timestamps)
                 grp.create_dataset("states", data=encoded_states)
-                grp.create_dataset("outputs", data=encoded_outputs)
 
 
 if __name__ == "__main__":

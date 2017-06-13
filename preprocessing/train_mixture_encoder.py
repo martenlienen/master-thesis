@@ -47,47 +47,38 @@ class DataGenerator:
 
 
 class FrameEncoder:
-    def __init__(self, batch_size, event_size, memory_size):
+    def __init__(self, batch_size, event_size, memory_size, nlayers, ncomponents):
+        self.ncomponents = ncomponents
         self.inputs = tf.placeholder(tf.float32, shape=(batch_size, None, event_size), name="sequences")
         self.seq_lengths = tf.placeholder(tf.int32, shape=(batch_size,), name="sequence_lengths")
 
-        self.ncomponents = 10
         # Each component has 5 values for mu, 5 for sigma, 1 mixture weight and
         # the whole thing has a probability for the polarity
         nparameters = self.ncomponents * 2 * 5 + self.ncomponents + 1
         with tf.variable_scope("encoder"):
-            cells = [
-                tf.contrib.rnn.LSTMCell(memory_size, use_peepholes=True),
-                tf.contrib.rnn.LSTMCell(memory_size, use_peepholes=True),
-                tf.contrib.rnn.LSTMCell(memory_size, num_proj=nparameters, use_peepholes=True),
-            ]
+            cells = [tf.contrib.rnn.GRUCell(memory_size) for _ in range(nlayers)]
             encoder = tf.contrib.rnn.MultiRNNCell(cells)
-            self.initial_state = tf.placeholder_with_default(np.zeros((batch_size, len(cells) * memory_size), np.float32), shape=(batch_size, len(cells) * memory_size), name="initial_state")
-            self.initial_output = tf.placeholder_with_default(np.zeros((batch_size, (len(cells) - 1) * memory_size + nparameters), np.float32), shape=(batch_size, (len(cells) - 1) * memory_size + nparameters), name="initial_output")
-            complete_state = tuple([tf.contrib.rnn.LSTMStateTuple(c, h) for c, h in zip(tf.split(self.initial_state, len(cells), axis=1), tf.split(self.initial_output, [memory_size] * (len(cells) - 1) + [nparameters], axis=1))])
+            self.initial_state = tf.placeholder_with_default(np.zeros((batch_size, nlayers * memory_size), np.float32), shape=(batch_size, nlayers * memory_size), name="initial_state")
             _, self.encoded_state = tf.nn.dynamic_rnn(encoder, self.inputs,
                                                       sequence_length=self.seq_lengths,
-                                                      initial_state=complete_state, dtype=tf.float32)
+                                                      initial_state=tuple(tf.split(self.initial_state, nlayers, axis=1)),
+                                                      dtype=tf.float32)
 
             # Create nodes for easy loading of the graph
-            tf.concat([c for c, h in self.encoded_state], axis=1, name="encoded_state")
-            tf.concat([h for c, h in self.encoded_state], axis=1, name="encoded_output")
+            tf.concat(self.encoded_state, axis=1, name="encoded_state")
 
         with tf.variable_scope("decoder"):
             decode_inputs = tf.concat([tf.constant(np.zeros((self.inputs.shape[0], 1, event_size), np.float32)),
                                        self.inputs[:, :-1, :]], axis=1)
-            cells = [
-                tf.contrib.rnn.LSTMCell(memory_size, use_peepholes=True),
-                tf.contrib.rnn.LSTMCell(memory_size, use_peepholes=True),
-                tf.contrib.rnn.LSTMCell(memory_size, num_proj=nparameters, use_peepholes=True),
-            ]
+            cells = [tf.contrib.rnn.GRUCell(memory_size) for _ in range(nlayers)]
             decoder = tf.contrib.rnn.MultiRNNCell(cells)
-            self.outputs, state = tf.nn.dynamic_rnn(decoder, decode_inputs,
-                                                    sequence_length=self.seq_lengths,
-                                                    initial_state=self.encoded_state, dtype=tf.float32)
+            final_outputs, final_state = tf.nn.dynamic_rnn(decoder, decode_inputs,
+                                                           sequence_length=self.seq_lengths,
+                                                           initial_state=self.encoded_state,
+                                                           dtype=tf.float32)
 
-            self.final_state = tf.concat([c for c, h in state], axis=1, name="final_state")
-            self.final_output = tf.concat([h for c, h in state], axis=1, name="final_output")
+            self.final_state = tf.concat(final_state, axis=1, name="final_state")
+            self.outputs = tf.contrib.keras.layers.Dense(nparameters, activation=None, name="outputs")(final_outputs)
 
 
 
@@ -99,6 +90,8 @@ def main():
     parser.add_argument("--batch-size", default=32, type=int, help="Batch size")
     parser.add_argument("--length", default=1000, type=int, help="Length of time window to encode in microseconds")
     parser.add_argument("--memory", default=128, type=int, help="Number of LSTM memory cells")
+    parser.add_argument("--components", default=10, type=int, help="Number of mixture components")
+    parser.add_argument("--layers", default=3, type=int, help="Number of recurrent layers")
     parser.add_argument("--chunk-size", default=100, type=int, help="Length of chunks to process at once")
     parser.add_argument("dataset", help="Path to preprocessed dataset")
     args = parser.parse_args()
@@ -109,6 +102,8 @@ def main():
     batch_size = args.batch_size
     window_length = args.length
     memory = args.memory
+    ncomponents = args.components
+    nlayers = args.layers
     chunk_size = args.chunk_size
     dataset_path = args.dataset
 
@@ -116,12 +111,12 @@ def main():
 
     num_batches = int(np.floor(generator.total_time / (batch_size * window_length)))
 
-    encoder = FrameEncoder(batch_size, generator.event_size, memory)
+    encoder = FrameEncoder(batch_size, generator.event_size, memory, nlayers, ncomponents)
 
     # mu = mean, sigma = variance, pi = mixture weights, tau = polarity distribution
     N = encoder.ncomponents
-    mu = tf.split(encoder.outputs[:, :, :5 * N], N, axis=-1)
-    sigma = tf.split(encoder.outputs[:, :, 5 * N:2 * 5 * N], N, axis=-1)
+    mu = tf.split(encoder.outputs[:, :, :5 * N], N, axis=2)
+    sigma = tf.split(encoder.outputs[:, :, 5 * N:2 * 5 * N], N, axis=2)
     pi = encoder.outputs[:, :, 2 * 5 * N:2 * 5 * N + N]
     tau = encoder.outputs[:, :, -1]
     cat = tf.contrib.distributions.Categorical(logits=pi)
@@ -153,7 +148,8 @@ def main():
     summary_writer = tf.summary.FileWriter(log_dir)
 
     init = tf.global_variables_initializer()
-    sv = tf.train.Supervisor(init_op=init, logdir=log_dir, summary_op=None)
+    saver = tf.train.Saver(max_to_keep=5, keep_checkpoint_every_n_hours=1)
+    sv = tf.train.Supervisor(init_op=init, logdir=log_dir, summary_op=None, saver=saver)
     with sv.managed_session() as sess:
         for epoch in range(epochs):
             print("# Epoch {}".format(epoch + 1))
@@ -165,7 +161,6 @@ def main():
 
                 # Split the training data into chunks of fixed length
                 chunk_state = None
-                chunk_input = None
                 max_length = np.max(seq_lengths)
                 offset = 0
                 batch_loss = 0.0
@@ -177,13 +172,11 @@ def main():
                     feeds = {encoder.inputs: chunk_data, encoder.seq_lengths: chunk_lengths}
                     if chunk_state is not None:
                         feeds[encoder.initial_state] = chunk_state
-                    if chunk_input is not None:
-                        feeds[encoder.initial_output] = chunk_input
                     if batch % 200 == 0:
-                        chunk_loss, chunk_state, chunk_input, _, summary, step = sess.run([loss, encoder.final_state, encoder.final_output, train_step, summaries, global_step], feeds)
+                        chunk_loss, chunk_state, _, summary, step = sess.run([loss, encoder.final_state, train_step, summaries, global_step], feeds)
                         summary_writer.add_summary(summary, step)
                     else:
-                        chunk_loss, chunk_state, chunk_input, _ = sess.run([loss, encoder.final_state, encoder.final_output, train_step], feeds)
+                        chunk_loss, chunk_state, _ = sess.run([loss, encoder.final_state, train_step], feeds)
                     batch_loss += chunk_loss
 
                     nchunks += 1
