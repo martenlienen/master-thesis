@@ -18,7 +18,7 @@ def read_data(path):
     data = []
 
     with h5.File(path, "r") as f:
-        for group in f.values():
+        for group in f["events"].values():
             directories.append(group.attrs["directory"])
             timestamps.append(np.array(group["timestamps"]))
             data.append(np.array(group["data"]))
@@ -62,8 +62,8 @@ def main():
     parser.add_argument("--chunk-size", default=100, type=int, help="Split sequences into chunks of length n")
     parser.add_argument("--length", default=1000, type=int, help="Length of frames in milliseconds")
     parser.add_argument("log_dir", help="Log directory")
-    parser.add_argument("dataset", help="Dataset to apply to")
-    parser.add_argument("out", help="h5 file to write to")
+    parser.add_argument("dataset", help="Preprocessed events to apply to")
+    parser.add_argument("out", help="HDF5 file to write to")
     args = parser.parse_args()
 
     batch_size = args.batch_size
@@ -125,15 +125,16 @@ def main():
             encoded_states = np.concatenate(encoded_states, axis=0)
 
             with h5.File(out_path, "a") as f:
-                if "recordings" in f:
-                    collection = f["recordings"]
+                if "gists" in f:
+                    collection = f["gists"]
                 else:
-                    collection = f.create_group("recordings")
+                    collection = f.create_group("gists")
 
-                grp = collection.create_group(str(i))
+                name = os.path.basename(directories[i])
+                grp = collection.create_group(name)
                 grp.attrs["directory"] = directories[i]
                 grp.create_dataset("timestamps", data=encoded_timestamps)
-                grp.create_dataset("states", data=encoded_states)
+                grp.create_dataset("data", data=encoded_states)
 
 
 if __name__ == "__main__":
