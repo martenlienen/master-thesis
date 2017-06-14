@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 
 import argparse
+import concurrent.futures
 import os
 
+import h5py as h5
 import numpy as np
 import pandas as pd
 
@@ -12,7 +14,7 @@ def ewm(data, dt, halflife):
 
     """
     # Perform the calculations in double because it involves numbers pretty
-    # close to 1 (consider halflife=10**6)
+    # close to 1 and 0 (consider halflife=10**6)
     columns = data.columns
     data = data.values.astype(np.float64)
     alpha = np.exp(np.log(0.5) / halflife)
@@ -28,27 +30,20 @@ def ewm(data, dt, halflife):
     return pd.DataFrame(data=data.astype(np.float32), columns=columns)
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--out", help="File to save data to")
-    parser.add_argument("events", help="CSV file with event data")
-    args = parser.parse_args()
+def read_data(directory):
+    events_path = os.path.join(directory, "events.csv")
 
-    out_path = args.out
-    events_path = args.events
-
-    if out_path is None:
-        ev_dir = os.path.dirname(os.path.realpath(events_path))
-        out_path = os.path.join(ev_dir, "preprocessed.csv")
-
-    # Read events
-    events = pd.read_csv(events_path)
+    # Read everything as float32 except the timestamps
+    columns = pd.read_csv(events_path, nrows=0).columns
+    dtype = {c: np.float32 for c in columns}
+    dtype["timestamp"] = np.int32
+    events = pd.read_csv(events_path, dtype=dtype)
 
     # Preprocess events
 
     # Compute time since previous event
     ts = events["timestamp"].values
-    dt = np.zeros(len(events), dtype=np.int32)
+    dt = np.zeros(len(events), dtype=np.float32)
     dt[1:] = ts[1:] - ts[:-1]
     events["dt"] = dt
 
@@ -64,9 +59,6 @@ def main():
     events["dx-fast"] = events["x"] - fast_mean["x"]
     events["dy-fast"] = events["y"] - fast_mean["y"]
 
-    # Drop first event that had no predecessor
-    # events = events.drop([0])
-
     # Drop columns with absolute values. We keep the timestamp because that is
     # needed for labeling.
     events = events.drop(["x", "y"], axis=1)
@@ -74,9 +66,55 @@ def main():
     # Reorder columns just to have them in the original order
     events = events[["timestamp", "dt", "dx-slow", "dx-fast", "dy-slow", "dy-fast", "polarity"]]
 
-    # Store preprocessed events. We do not need more than a few decimal places
-    # (if even that) and would rather save space.
-    events.to_csv(out_path, index=False, float_format="%.2f")
+    # Split timestamps from data for further processing
+    timestamps = events["timestamp"].values
+    data = events.drop("timestamp", axis=1).values
+
+    return timestamps, data
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("dirs", nargs="*", help="File to save data to")
+    parser.add_argument("out", help="HDF5 to write to")
+    args = parser.parse_args()
+
+    directories = args.dirs
+    out_path = args.out
+
+    with concurrent.futures.ProcessPoolExecutor() as ex:
+        event_data = list(ex.map(read_data, directories))
+
+    timestamps = [t for t, d in event_data]
+    data = [d for t, d in event_data]
+
+    # Compute mean and standard deviation for normalization
+    ndata = np.sum([d.shape[0] for d in data])
+    with concurrent.futures.ThreadPoolExecutor() as ex:
+        mu = np.sum(list(ex.map(lambda d: np.sum(d, axis=0, dtype=np.float64) / ndata, data)), axis=0)
+        sigma = np.sqrt(np.sum(list(ex.map(lambda d: np.sum(np.square(d - mu), axis=0)  / ndata, data)), axis=0))
+
+    # We computed mu and sigma in double precision, but now convert them back
+    # so that the data will not be converted
+    mu = mu.astype(np.float32)
+    sigma = sigma.astype(np.float32)
+
+    # Normalize the data
+    for i in range(len(data)):
+        data[i] = (data[i] - mu) / sigma
+
+    # Save the preprocessed data in an HDF5 file
+    with h5.File(out_path, "w") as f:
+        grp = f.create_group("events")
+        grp.attrs["mu"] = mu
+        grp.attrs["sigma"] = sigma
+
+        for directory, ts, d in zip(directories, timestamps, data):
+            name = os.path.basename(directory)
+            dgrp = grp.create_group(name)
+            dgrp.attrs["directory"] = directory
+            dgrp["timestamps"] = ts
+            dgrp["data"] = d
 
 
 if __name__ == "__main__":

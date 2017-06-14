@@ -11,11 +11,11 @@ from tqdm import tqdm
 class DataGenerator:
     def __init__(self, path):
         with h5.File(path, "r") as f:
-            self.data = []
             self.timestamps = []
-            for group in f.values():
-                self.data.append(np.array(group["data"]))
+            self.data = []
+            for group in f["events"].values():
                 self.timestamps.append(np.array(group["timestamps"]))
+                self.data.append(np.array(group["data"]))
 
         self.event_size = self.data[0].shape[-1]
         self.duration = [t[-1] - t[0] for t in self.timestamps]
