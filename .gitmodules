@@ -2,3 +2,7 @@
 	path = dvs-reconstruction
 	url = https://github.com/cqql/dvs-reconstruction.git
   ignore = dirty
+[submodule "pipeline/keras_models"]
+	path = pipeline/keras_models
+	url = https://github.com/fchollet/deep-learning-models.git
+	ignore = dirty
