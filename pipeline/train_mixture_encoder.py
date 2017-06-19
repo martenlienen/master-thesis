@@ -62,22 +62,27 @@ class FrameEncoder:
             encoder = tf.contrib.rnn.MultiRNNCell(cells)
             self.initial_state = tf.placeholder_with_default(tf.zeros((self.batch_size, nlayers * memory_size), dtype=tf.float32),
                                                              shape=(None, nlayers * memory_size), name="initial_state")
-            _, self.encoded_state = tf.nn.dynamic_rnn(encoder, self.inputs,
-                                                      sequence_length=self.seq_lengths,
-                                                      initial_state=tuple(tf.split(self.initial_state, nlayers, axis=1)),
-                                                      dtype=tf.float32)
+            _, states = tf.nn.dynamic_rnn(encoder, self.inputs,
+                                          sequence_length=self.seq_lengths,
+                                          initial_state=tuple(tf.split(self.initial_state, nlayers, axis=1)),
+                                          dtype=tf.float32)
 
             # Create nodes for easy loading of the graph
-            tf.concat(self.encoded_state, axis=1, name="encoded_state")
+            encoded_state = tf.concat(states, axis=1, name="encoded_state")
 
         with tf.variable_scope("decoder"):
-            decode_inputs = tf.concat([tf.zeros((self.batch_size, 1, event_size), tf.float32),
-                                       self.inputs[:, :-1, :]], axis=1)
+            self.decoder_initial_state = tf.placeholder_with_default(encoded_state,
+                                                                     (None, nlayers * memory_size),
+                                                                     name="initial_state")
+            self.decoder_initial_input = tf.placeholder_with_default(tf.zeros((self.batch_size, 1, event_size), tf.float32),
+                                                                     (None, 1, event_size),
+                                                                     name="initial_input")
+            decode_inputs = tf.concat([self.decoder_initial_input, self.inputs[:, :-1, :]], axis=1)
             cells = [tf.contrib.rnn.GRUCell(memory_size) for _ in range(nlayers)]
             decoder = tf.contrib.rnn.MultiRNNCell(cells)
             final_outputs, final_state = tf.nn.dynamic_rnn(decoder, decode_inputs,
                                                            sequence_length=self.seq_lengths,
-                                                           initial_state=self.encoded_state,
+                                                           initial_state=tuple(tf.split(self.decoder_initial_state, nlayers, axis=1)),
                                                            dtype=tf.float32)
 
             self.final_state = tf.concat(final_state, axis=1, name="final_state")
