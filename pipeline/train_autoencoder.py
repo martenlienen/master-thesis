@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+from datetime import datetime
 
 import h5py as h5
 import numpy as np
@@ -104,7 +105,7 @@ def main():
     parser.add_argument("dataset", help="Path to preprocessed dataset")
     args = parser.parse_args()
 
-    log_dir = args.log_dir or "mixture-encoder-log-{}".format(0)
+    log_dir = args.log_dir or f"autoencoder-log-{datetime.now():%Y%m%d-%H%M}"
     learning_rate = args.learning_rate
     epochs = args.epochs
     batch_size = args.batch_size
