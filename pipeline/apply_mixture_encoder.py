@@ -101,13 +101,12 @@ def main():
             for batch_timestamps, seq_lengths, batch in tqdm(iterate_data(batch_size, length, timestamps[i], data[i]), desc="Batches", total=total_batches):
                 chunk_state = None
                 batch_encoded_states = None
-                max_length = np.max(seq_lengths)
                 offset = 0
                 # We run this loop at least once so that the states are
                 # computed correctly for batches that are completely empty
                 while np.any(seq_lengths > 0) or offset == 0:
                     chunk_lengths = np.minimum(chunk_size, seq_lengths)
-                    chunk_data = batch[:, offset:min(offset + chunk_size, max_length), :]
+                    chunk_data = batch[:, offset:offset + max(chunk_lengths), :]
 
                     feeds = {sequences: chunk_data, sequence_lengths: chunk_lengths}
                     if chunk_state is not None:

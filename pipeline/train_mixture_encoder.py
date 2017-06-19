@@ -164,13 +164,12 @@ def main():
 
                 # Split the training data into chunks of fixed length
                 chunk_state = None
-                max_length = np.max(seq_lengths)
                 offset = 0
                 batch_loss = 0.0
                 nchunks = 0
                 while np.any(seq_lengths > 0):
                     chunk_lengths = np.minimum(chunk_size, seq_lengths)
-                    chunk_data = data[:, offset:min(offset + chunk_size, max_length), :]
+                    chunk_data = data[:, offset:offset + max(chunk_lengths), :]
 
                     feeds = {encoder.inputs: chunk_data, encoder.seq_lengths: chunk_lengths}
                     if chunk_state is not None:
