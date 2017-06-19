@@ -172,15 +172,29 @@ def main():
                     chunk_lengths = np.minimum(chunk_size, seq_lengths)
                     chunk_data = data[:, offset:offset + max(chunk_lengths), :]
 
-                    feeds = {encoder.inputs: chunk_data, encoder.seq_lengths: chunk_lengths}
-                    if chunk_state is not None:
-                        feeds[encoder.initial_state] = chunk_state
+                    if chunk_state is None:
+                        feeds = {encoder.inputs: chunk_data,
+                                 encoder.seq_lengths: chunk_lengths}
+                    else:
+                        # Only run encoder on sequences that have not yet ended for
+                        # performance
+                        chunk_filter = chunk_lengths > 0
+                        feeds = {encoder.inputs: chunk_data[chunk_filter],
+                                 encoder.seq_lengths: chunk_lengths[chunk_filter],
+                                 encoder.initial_state: chunk_state[chunk_filter],
+                                 actual_batch_size: batch_size}
+
                     if batch % 200 == 0:
-                        chunk_loss, chunk_state, _, summary, step = sess.run([loss, encoder.final_state, train_step, summaries, global_step], feeds)
+                        chunk_loss, filtered_chunk_state, _, summary, step = sess.run([loss, encoder.final_state, train_step, summaries, global_step], feeds)
                         summary_writer.add_summary(summary, step)
                     else:
-                        chunk_loss, chunk_state, _ = sess.run([loss, encoder.final_state, train_step], feeds)
+                        chunk_loss, filtered_chunk_state, _ = sess.run([loss, encoder.final_state, train_step], feeds)
                     batch_loss += chunk_loss
+
+                    if chunk_state is None:
+                        chunk_state = filtered_chunk_state
+                    else:
+                        chunk_state[chunk_filter] = filtered_chunk_state
 
                     nchunks += 1
                     offset += chunk_size

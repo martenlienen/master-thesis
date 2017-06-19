@@ -108,11 +108,21 @@ def main():
                     chunk_lengths = np.minimum(chunk_size, seq_lengths)
                     chunk_data = batch[:, offset:offset + max(chunk_lengths), :]
 
-                    feeds = {sequences: chunk_data, sequence_lengths: chunk_lengths}
-                    if chunk_state is not None:
-                        feeds[initial_state] = chunk_state
+                    if chunk_state is None:
+                        feeds = {sequences: chunk_data, sequence_lengths: chunk_lengths}
+                    else:
+                        # Run the network only on sequences that have not ended yet
+                        chunk_filter = chunk_lengths > 0
+                        feeds = {sequences: chunk_data[chunk_filter],
+                                 sequence_lengths: chunk_lengths[chunk_filter],
+                                 initial_state: chunk_state[chunk_filter]}
 
-                    chunk_state, batch_encoded_states = sess.run([final_state, encoded_state], feeds)
+                    filtered_chunk_state, batch_encoded_states = sess.run([final_state, encoded_state], feeds)
+
+                    if chunk_state is None:
+                        chunk_state = filtered_chunk_state
+                    else:
+                        chunk_state[chunk_filter] = filtered_chunk_state
 
                     offset += chunk_size
                     seq_lengths = np.maximum(0, seq_lengths - chunk_size)
