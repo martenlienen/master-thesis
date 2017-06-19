@@ -137,7 +137,8 @@ def main():
     mask = tf.tile(tf.expand_dims(encoder.seq_lengths, 1), [1, encoder.chunk_size]) > sequence_position
 
     masked_ll = tf.where(tf.slice(mask, [0, 0], tf.shape(log_likelihood)), log_likelihood, tf.zeros_like(log_likelihood))
-    loss = -tf.reduce_sum(masked_ll) / tf.reduce_sum(tf.cast(encoder.seq_lengths, tf.float32))
+    actual_batch_size = tf.placeholder_with_default(encoder.batch_size, shape=(), name="actual_batch_size")
+    loss = -tf.reduce_sum(masked_ll) / tf.cast(actual_batch_size, tf.float32)
 
     global_step = tf.get_variable("global_step", shape=(), dtype=tf.int64, trainable=False, initializer=tf.constant_initializer(0))
     optimizer = tf.train.AdamOptimizer(learning_rate)
