@@ -47,10 +47,12 @@ class DataGenerator:
 
 
 class FrameEncoder:
-    def __init__(self, batch_size, event_size, memory_size, nlayers, ncomponents):
+    def __init__(self, event_size, memory_size, nlayers, ncomponents):
         self.ncomponents = ncomponents
-        self.inputs = tf.placeholder(tf.float32, shape=(batch_size, None, event_size), name="sequences")
-        self.seq_lengths = tf.placeholder(tf.int32, shape=(batch_size,), name="sequence_lengths")
+        self.inputs = tf.placeholder(tf.float32, shape=(None, None, event_size), name="sequences")
+        self.seq_lengths = tf.placeholder(tf.int32, shape=(None,), name="sequence_lengths")
+        self.batch_size = tf.shape(self.seq_lengths)[0]
+        self.chunk_size = tf.reduce_max(self.seq_lengths)
 
         # Each component has 5 values for mu, 5 for sigma, 1 mixture weight and
         # the whole thing has a probability for the polarity
@@ -58,7 +60,8 @@ class FrameEncoder:
         with tf.variable_scope("encoder"):
             cells = [tf.contrib.rnn.GRUCell(memory_size) for _ in range(nlayers)]
             encoder = tf.contrib.rnn.MultiRNNCell(cells)
-            self.initial_state = tf.placeholder_with_default(np.zeros((batch_size, nlayers * memory_size), np.float32), shape=(batch_size, nlayers * memory_size), name="initial_state")
+            self.initial_state = tf.placeholder_with_default(tf.zeros((self.batch_size, nlayers * memory_size), dtype=tf.float32),
+                                                             shape=(None, nlayers * memory_size), name="initial_state")
             _, self.encoded_state = tf.nn.dynamic_rnn(encoder, self.inputs,
                                                       sequence_length=self.seq_lengths,
                                                       initial_state=tuple(tf.split(self.initial_state, nlayers, axis=1)),
@@ -68,7 +71,7 @@ class FrameEncoder:
             tf.concat(self.encoded_state, axis=1, name="encoded_state")
 
         with tf.variable_scope("decoder"):
-            decode_inputs = tf.concat([tf.constant(np.zeros((self.inputs.shape[0], 1, event_size), np.float32)),
+            decode_inputs = tf.concat([tf.zeros((self.batch_size, 1, event_size), tf.float32),
                                        self.inputs[:, :-1, :]], axis=1)
             cells = [tf.contrib.rnn.GRUCell(memory_size) for _ in range(nlayers)]
             decoder = tf.contrib.rnn.MultiRNNCell(cells)
@@ -111,7 +114,7 @@ def main():
 
     num_batches = int(np.floor(generator.total_time / (batch_size * window_length)))
 
-    encoder = FrameEncoder(batch_size, generator.event_size, memory, nlayers, ncomponents)
+    encoder = FrameEncoder(generator.event_size, memory, nlayers, ncomponents)
 
     # mu = mean, sigma = variance, pi = mixture weights, tau = polarity distribution
     N = encoder.ncomponents
@@ -130,8 +133,8 @@ def main():
     log_likelihood = mixture.log_prob(continuous_attrs) + bernoulli.log_prob(polarities)
 
     # Create a mask to block out log likelihoods beyond the end of a sequence
-    sequence_position = tf.constant(np.tile(np.arange(chunk_size, dtype=np.int32), [batch_size, 1]))
-    mask = tf.tile(tf.expand_dims(encoder.seq_lengths, 1), [1, chunk_size]) > sequence_position
+    sequence_position = tf.tile(tf.expand_dims(tf.range(encoder.chunk_size, dtype=tf.int32), 0), [encoder.batch_size, 1])
+    mask = tf.tile(tf.expand_dims(encoder.seq_lengths, 1), [1, encoder.chunk_size]) > sequence_position
 
     masked_ll = tf.where(tf.slice(mask, [0, 0], tf.shape(log_likelihood)), log_likelihood, tf.zeros_like(log_likelihood))
     loss = -tf.reduce_sum(masked_ll) / tf.reduce_sum(tf.cast(encoder.seq_lengths, tf.float32))
