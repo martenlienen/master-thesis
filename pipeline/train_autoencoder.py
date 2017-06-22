@@ -23,28 +23,42 @@ class DataGenerator:
         self.total_time = np.sum(self.duration)
         self.weights = np.array(self.duration, dtype=np.float32) / self.total_time
 
-    def generate(self, batch_size, length):
-        data_indices = np.random.choice(np.arange(len(self.data)), size=batch_size,
-                                        replace=True, p=self.weights)
+    def num_batches(self, batch_size, length):
+        return int(np.ceil(sum([np.floor(d / length) for d in self.duration]) / batch_size))
+
+    def iterate(self, batch_size, length):
         ranges = []
-        seq_lengths = np.empty(batch_size, np.int32)
-        for i in range(batch_size):
-            k = data_indices[i]
-            start_index, end_index = None, None
-            while start_index == end_index:
-                start = np.random.randint(self.duration[k] - length + 1)
-                end = start + length
-                start_index, end_index = np.searchsorted(self.timestamps[k], [start, end + 1])
-            seq_lengths[i] = end_index - start_index
-            ranges.append((start_index, end_index))
+        for i, t in enumerate(self.timestamps):
+            end_times = np.arange(t[1], t[-1] + 1, length)
+            end_times += np.random.randint(length)
+            start_times = np.zeros(len(end_times))
+            start_times[0] = t[0]
+            start_times[1:] = end_times[:-1]
 
-        max_length = max(seq_lengths)
-        data = np.zeros((batch_size, max_length, self.event_size), np.float32)
-        for i in range(batch_size):
-            k = data_indices[i]
-            data[i, :seq_lengths[i], :] = self.data[k][ranges[i][0]:ranges[i][1]]
+            start_indices = np.searchsorted(t, start_times)
+            end_indices = np.searchsorted(t, end_times)
 
-        return seq_lengths, data
+            A = np.empty((len(start_indices), 3), np.int32)
+            A[:, 0] = i
+            A[:, 1] = start_indices
+            A[:, 2] = end_indices
+
+            ranges.append(A)
+
+        ranges = np.concatenate(ranges, axis=0)
+
+        np.random.shuffle(ranges)
+
+        for i in range(0, len(ranges), batch_size):
+            batch_ranges = ranges[i:i + batch_size]
+            seq_lengths = (batch_ranges[:, 2] - batch_ranges[:, 1]).astype(np.int32)
+            max_length = np.max(seq_lengths)
+            data = np.zeros((len(batch_ranges), max_length, self.event_size), np.float32)
+            for j in range(len(batch_ranges)):
+                k, start, end = batch_ranges[j]
+                data[j, :seq_lengths[j]] = self.data[k][start:end]
+
+            yield seq_lengths, data
 
 
 class FrameEncoder:
@@ -118,8 +132,6 @@ def main():
 
     generator = DataGenerator(dataset_path)
 
-    num_batches = int(np.floor(generator.total_time / (batch_size * window_length)))
-
     encoder = FrameEncoder(generator.event_size, memory, nlayers, ncomponents)
 
     # mu = mean, sigma = variance, pi = mixture weights, tau = polarity distribution
@@ -165,9 +177,10 @@ def main():
             print("# Epoch {}".format(epoch + 1))
 
             loss_values = []
-            batches = tqdm(range(num_batches))
+            batches = tqdm(range(generator.num_batches(batch_size, window_length)))
+            iterator = generator.iterate(batch_size, window_length)
             for batch in batches:
-                seq_lengths, data = generator.generate(batch_size, window_length)
+                seq_lengths, data = next(iterator)
 
                 # Split the training data into chunks of fixed length
                 chunk_state = None
