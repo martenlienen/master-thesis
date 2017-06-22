@@ -95,10 +95,13 @@ def main():
 
         for i in tqdm(range(len(directories)), desc="Directories"):
             encoded_timestamps = []
+            encoded_seq_lengths = []
             encoded_states = []
 
             total_batches = int(np.ceil((timestamps[i][-1] - timestamps[i][0]) / (length * batch_size)))
             for batch_timestamps, seq_lengths, batch in tqdm(iterate_data(batch_size, length, timestamps[i], data[i]), desc="Batches", total=total_batches):
+                original_seq_lengths = seq_lengths.copy()
+
                 chunk_state = None
                 batch_encoded_states = None
                 offset = 0
@@ -128,9 +131,11 @@ def main():
                     seq_lengths = np.maximum(0, seq_lengths - chunk_size)
 
                 encoded_timestamps.append(batch_timestamps)
+                encoded_seq_lengths.append(original_seq_lengths)
                 encoded_states.append(batch_encoded_states)
 
             encoded_timestamps = np.concatenate(encoded_timestamps, axis=0)
+            encoded_seq_lengths = np.concatenate(encoded_seq_lengths, axis=0)
             encoded_states = np.concatenate(encoded_states, axis=0)
 
             with h5.File(out_path, "a") as f:
@@ -143,6 +148,7 @@ def main():
                 grp = collection.create_group(name)
                 grp.attrs["directory"] = directories[i]
                 grp.create_dataset("timestamps", data=encoded_timestamps)
+                grp.create_dataset("num_events", data=encoded_seq_lengths)
                 grp.create_dataset("data", data=encoded_states)
 
 
