@@ -111,16 +111,16 @@ def main():
     parser.add_argument("--learning-rate", default=0.0001, type=float, help="Learning rate")
     parser.add_argument("--epochs", default=10, type=int, help="Number of epochs")
     parser.add_argument("--batch-size", default=32, type=int, help="Batch size")
-    parser.add_argument("--length", default=1000, type=int, help="Length of time window to encode in microseconds")
+    parser.add_argument("--length", default=2500, type=int, help="Length of time window to encode in microseconds")
     parser.add_argument("--memory", default=128, type=int, help="Number of LSTM memory cells")
     parser.add_argument("--components", default=10, type=int, help="Number of mixture components")
     parser.add_argument("--layers", default=3, type=int, help="Number of recurrent layers")
-    parser.add_argument("--chunk-size", default=100, type=int, help="Length of chunks to process at once")
+    parser.add_argument("--chunk-size", default=200, type=int, help="Length of chunks to process at once")
     parser.add_argument("dataset", help="Path to preprocessed dataset")
     args = parser.parse_args()
 
     log_dir = args.log_dir or f"autoencoder-log-{datetime.now():%Y%m%d-%H%M}"
-    learning_rate = args.learning_rate
+    initial_learning_rate = args.learning_rate
     epochs = args.epochs
     batch_size = args.batch_size
     window_length = args.length
@@ -159,6 +159,7 @@ def main():
     loss = -tf.reduce_sum(masked_ll) / tf.cast(actual_batch_size, tf.float32)
 
     global_step = tf.get_variable("global_step", shape=(), dtype=tf.int64, trainable=False, initializer=tf.constant_initializer(0))
+    learning_rate = tf.placeholder_with_default(np.float32(initial_learning_rate), shape=())
     optimizer = tf.train.AdamOptimizer(learning_rate)
     gradients, variables = zip(*optimizer.compute_gradients(loss))
     gradients, gradient_norm = tf.clip_by_global_norm(gradients, 5.0)
@@ -202,6 +203,9 @@ def main():
                                  encoder.seq_lengths: chunk_lengths[chunk_filter],
                                  encoder.initial_state: chunk_state[chunk_filter],
                                  actual_batch_size: batch_size}
+
+                    # Learning rate decay
+                    feeds[learning_rate] = initial_learning_rate * 0.95**epoch
 
                     if batch % 200 == 0:
                         chunk_loss, filtered_chunk_state, _, summary, step = sess.run([loss, encoder.encoded_state, train_step, summaries, global_step], feeds)
