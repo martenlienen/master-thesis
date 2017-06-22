@@ -86,7 +86,6 @@ def main():
     sequence_lengths = g.get_tensor_by_name("sequence_lengths:0")
     initial_state = g.get_tensor_by_name("encoder/initial_state:0")
     encoded_state = g.get_tensor_by_name("encoder/encoded_state:0")
-    final_state = g.get_tensor_by_name("decoder/final_state:0")
 
     directories, timestamps, data = read_data(dataset_path)
 
@@ -120,7 +119,7 @@ def main():
                                  sequence_lengths: chunk_lengths[chunk_filter],
                                  initial_state: chunk_state[chunk_filter]}
 
-                    filtered_chunk_state, batch_encoded_states = sess.run([final_state, encoded_state], feeds)
+                    filtered_chunk_state, batch_encoded_states = sess.run([encoded_state, encoded_state], feeds)
 
                     if chunk_state is None:
                         chunk_state = filtered_chunk_state

@@ -69,10 +69,10 @@ class FrameEncoder:
                                           dtype=tf.float32)
 
             # Create nodes for easy loading of the graph
-            encoded_state = tf.concat(states, axis=1, name="encoded_state")
+            self.encoded_state = tf.concat(states, axis=1, name="encoded_state")
 
         with tf.variable_scope("decoder"):
-            self.decoder_initial_state = tf.placeholder_with_default(encoded_state,
+            self.decoder_initial_state = tf.placeholder_with_default(self.encoded_state,
                                                                      (None, nlayers * memory_size),
                                                                      name="initial_state")
             self.decoder_initial_input = tf.placeholder_with_default(tf.zeros((self.batch_size, 1, event_size), tf.float32),
@@ -191,10 +191,10 @@ def main():
                                  actual_batch_size: batch_size}
 
                     if batch % 200 == 0:
-                        chunk_loss, filtered_chunk_state, _, summary, step = sess.run([loss, encoder.final_state, train_step, summaries, global_step], feeds)
+                        chunk_loss, filtered_chunk_state, _, summary, step = sess.run([loss, encoder.encoded_state, train_step, summaries, global_step], feeds)
                         summary_writer.add_summary(summary, step)
                     else:
-                        chunk_loss, filtered_chunk_state, _ = sess.run([loss, encoder.final_state, train_step], feeds)
+                        chunk_loss, filtered_chunk_state, _ = sess.run([loss, encoder.encoded_state, train_step], feeds)
                     batch_loss += chunk_loss
 
                     if chunk_state is None:
