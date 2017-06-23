@@ -26,34 +26,28 @@ def read_data(path):
     return directories, timestamps, data
 
 
-def iterate_data(batch_size, length, timestamps, data):
-    start_time = timestamps[0]
-    end_time = start_time + length
-    start = 0
-    end = np.searchsorted(timestamps, end_time)
+def num_iterations(length, chunk_size, timestamps, data):
+    start_times = np.arange(timestamps[0], timestamps[-1], length)
+    end_times = start_times + length
 
-    while start < len(timestamps):
-        batch_timestamps = np.zeros(batch_size, np.int32)
-        ranges = []
-        seq_lengths = np.zeros(batch_size, np.int32)
-        for i in range(batch_size):
-            batch_timestamps[i] = end_time - length // 2
-            ranges.append((start, end))
-            seq_lengths[i] = end - start
+    start_indices = np.searchsorted(timestamps, start_times)
+    end_indices = np.searchsorted(timestamps, end_times)
 
-            end_time += length
-            start = end
-            end = np.searchsorted(timestamps, end_time)
+    seq_lengths = end_indices - start_indices
+    num_chunks = np.ceil(seq_lengths / chunk_size)
 
-            if start == len(timestamps):
-                break
+    return int(np.sum(num_chunks))
 
-        max_length = max(seq_lengths)
-        batch = np.zeros((batch_size, max_length, data.shape[-1]))
-        for i in range(len(ranges)):
-            batch[i, :seq_lengths[i], :] = data[ranges[i][0]:ranges[i][1]]
 
-        yield batch_timestamps, seq_lengths, batch
+def iterate_data(length, timestamps, data):
+    start_times = np.arange(timestamps[0], timestamps[-1], length)
+    end_times = start_times + length
+
+    start_indices = np.searchsorted(timestamps, start_times)
+    end_indices = np.searchsorted(timestamps, end_times)
+
+    for start_time, start, end in zip(start_times, start_indices, end_indices):
+        yield start_time + length // 2, end - start, data[start:end]
 
 
 def main():
@@ -88,67 +82,94 @@ def main():
     encoded_state = g.get_tensor_by_name("encoder/encoded_state:0")
 
     directories, timestamps, data = read_data(dataset_path)
+    event_size = data[0].shape[-1]
+
+    max_iterations = max([num_iterations(length, chunk_size, t, d) for t, d in zip(timestamps, data)])
+    iterators = [iterate_data(length, t, d) for t, d in zip(timestamps, data)]
+
+    # Build a progress bar
+    progress_bar = tqdm(total=max_iterations, desc="Chunks")
+
+    encoded_timestamps = [[] for _ in range(len(data))]
+    encoded_seq_lengths = [[] for _ in range(len(data))]
+    encoded_states = [[] for _ in range(len(data))]
 
     with tf.Session() as sess:
         saver.restore(sess, latest_checkpoint)
 
-        for i in tqdm(range(len(directories)), desc="Directories"):
-            encoded_timestamps = []
-            encoded_seq_lengths = []
-            encoded_states = []
+        exhausted = np.array([False] * len(data))
 
-            total_batches = int(np.ceil((timestamps[i][-1] - timestamps[i][0]) / (length * batch_size)))
-            for batch_timestamps, seq_lengths, batch in tqdm(iterate_data(batch_size, length, timestamps[i], data[i]), desc="Batches", total=total_batches):
-                original_seq_lengths = seq_lengths.copy()
+        chunk_state = np.zeros((len(data), initial_state.shape[-1]), np.float32)
+        current_seq_length = np.zeros(len(data), np.int32)
+        current_data = [None] * len(data)
+        offset = np.zeros(len(data), np.int32)
+        while True:
+            for i, it in enumerate(iterators):
+                if exhausted[i]:
+                    continue
 
-                chunk_state = None
-                batch_encoded_states = None
-                offset = 0
-                # We run this loop at least once so that the states are
-                # computed correctly for batches that are completely empty
-                while np.any(seq_lengths > 0) or offset == 0:
-                    chunk_lengths = np.minimum(chunk_size, seq_lengths)
-                    chunk_data = batch[:, offset:offset + max(chunk_lengths), :]
+                if offset[i] < current_seq_length[i]:
+                    continue
 
-                    if chunk_state is None:
-                        feeds = {sequences: chunk_data, sequence_lengths: chunk_lengths}
-                    else:
-                        # Run the network only on sequences that have not ended yet
-                        chunk_filter = chunk_lengths > 0
-                        feeds = {sequences: chunk_data[chunk_filter],
-                                 sequence_lengths: chunk_lengths[chunk_filter],
-                                 initial_state: chunk_state[chunk_filter]}
+                try:
+                    # Store the encoding of the previous sequence
+                    if len(encoded_timestamps[i]) > 0:
+                        # But not on the first run through the loop
+                        encoded_states[i].append(chunk_state[i])
 
-                    filtered_chunk_state, batch_encoded_states = sess.run([encoded_state, encoded_state], feeds)
+                    timestamp, length, data_slice = next(it)
 
-                    if chunk_state is None:
-                        chunk_state = filtered_chunk_state
-                    else:
-                        chunk_state[chunk_filter] = filtered_chunk_state
+                    # Store the constant attributes of this sequence
+                    encoded_timestamps[i].append(timestamp)
+                    encoded_seq_lengths[i].append(length)
 
-                    offset += chunk_size
-                    seq_lengths = np.maximum(0, seq_lengths - chunk_size)
+                    current_seq_length[i] = length
+                    current_data[i] = data_slice
+                    offset[i] = 0
+                except StopIteration:
+                    exhausted[i] = True
 
-                encoded_timestamps.append(batch_timestamps)
-                encoded_seq_lengths.append(original_seq_lengths)
-                encoded_states.append(batch_encoded_states)
+            # If we have exhausted all iterators, we are done
+            if np.all(exhausted):
+                break
 
-            encoded_timestamps = np.concatenate(encoded_timestamps, axis=0)
-            encoded_seq_lengths = np.concatenate(encoded_seq_lengths, axis=0)
-            encoded_states = np.concatenate(encoded_states, axis=0)
+            # Compute the lengths of sequences that go into this chunk and
+            # filter out exhausted/empty ones
+            chunk_lengths = np.minimum(current_seq_length - offset, chunk_size)
+            active_filter = (chunk_lengths > 0) & ~exhausted
+            nactive = np.count_nonzero(active_filter)
 
-            with h5.File(out_path, "a") as f:
-                if "gists" in f:
-                    collection = f["gists"]
-                else:
-                    collection = f.create_group("gists")
+            # Collect the data for this chunk
+            max_length = np.max(chunk_lengths)
+            chunk_data = np.zeros((nactive, max_length, event_size), np.float32)
+            for i, j in enumerate(np.nonzero(active_filter)[0]):
+                chunk_data[i, :chunk_lengths[j]] = current_data[j][offset[j]:offset[j] + chunk_size]
 
-                name = os.path.basename(directories[i])
-                grp = collection.create_group(name)
-                grp.attrs["directory"] = directories[i]
-                grp.create_dataset("timestamps", data=encoded_timestamps)
-                grp.create_dataset("num_events", data=encoded_seq_lengths)
-                grp.create_dataset("data", data=encoded_states)
+            # Run the encoder
+            feeds = {sequences: chunk_data,
+                     sequence_lengths: chunk_lengths[active_filter],
+                     initial_state: chunk_state[active_filter]}
+            encodings = sess.run(encoded_state, feeds)
+
+            # Store the updated encoder states
+            chunk_state[active_filter] = encodings
+
+            # Advance each sequence by one chunk size
+            offset += chunk_size
+
+            # Update the progress bar
+            progress_bar.update()
+
+    with h5.File(out_path, "w") as f:
+        collection = f.create_group("gists")
+
+        for i in range(len(data)):
+            name = os.path.basename(directories[i])
+            grp = collection.create_group(name)
+            grp.attrs["directory"] = directories[i]
+            grp.create_dataset("timestamps", data=np.array(encoded_timestamps[i], np.int32))
+            grp.create_dataset("num_events", data=np.array(encoded_seq_lengths[i], np.int32))
+            grp.create_dataset("data", data=np.stack(encoded_states[i]))
 
 
 if __name__ == "__main__":
