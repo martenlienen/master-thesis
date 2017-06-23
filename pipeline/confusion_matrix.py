@@ -9,9 +9,11 @@ import numpy as np
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--type", default="top", choices=["top", "softmax"], help="Plot either the top-1 accuracy of the probability distribution over classes")
     parser.add_argument("dataset")
     args = parser.parse_args()
 
+    plot_type = args.type
     dataset_path = args.dataset
 
     with h5.File(dataset_path, "r") as f:
@@ -31,18 +33,31 @@ def main():
 
     labels[labels == -1] = len(label_index)
 
-    predictions = np.argmax(logits, axis=-1)
-
     label_index.append("<blank>")
 
     cm = np.zeros((len(label_index), len(label_index)))
-    for i in range(len(label_index)):
-        fltr = labels == i
-        l = labels[fltr]
-        p = predictions[fltr]
 
-        for j in range(len(label_index)):
-            cm[i, j] = np.count_nonzero(p == j) / len(l)
+    if plot_type == "top":
+        predictions = np.argmax(logits, axis=-1)
+
+        for i in range(len(label_index)):
+            fltr = labels == i
+            l = labels[fltr]
+            p = predictions[fltr]
+
+            for j in range(len(label_index)):
+                cm[i, j] = np.count_nonzero(p == j) / len(l)
+    elif plot_type == "softmax":
+        # Softmax
+        probs = np.exp(logits)
+        probs /= np.sum(probs, axis=1)[:, np.newaxis]
+
+        for i in range(len(label_index)):
+            fltr = labels == i
+            l = labels[fltr]
+            p = probs[fltr]
+
+            cm[i] = np.sum(p, axis=0) / len(l)
 
     ax = pp.gca()
     tm = np.arange(len(label_index))
