@@ -55,6 +55,7 @@ def main():
     parser.add_argument("--batch-size", default=32, type=int, help="Batch size")
     parser.add_argument("--chunk-size", default=100, type=int, help="Split sequences into chunks of length n")
     parser.add_argument("--length", default=1000, type=int, help="Length of frames in milliseconds")
+    parser.add_argument("--clear", default=False, action="store_true", dest="clear", help="Clear state between gists")
     parser.add_argument("log_dir", help="Log directory")
     parser.add_argument("dataset", help="Preprocessed events to apply to")
     parser.add_argument("out", help="HDF5 file to write to")
@@ -63,6 +64,7 @@ def main():
     batch_size = args.batch_size
     chunk_size = args.chunk_size
     length = args.length
+    clear_state = args.clear
     log_dir = args.log_dir
     dataset_path = args.dataset
     out_path = args.out
@@ -122,6 +124,9 @@ def main():
                     # Store the constant attributes of this sequence
                     encoded_timestamps[i].append(timestamp)
                     encoded_seq_lengths[i].append(length)
+
+                    if clear_state:
+                        chunk_state[i] = 0.0
 
                     current_seq_length[i] = length
                     current_data[i] = data_slice
