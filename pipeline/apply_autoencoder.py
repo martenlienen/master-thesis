@@ -86,11 +86,11 @@ def main():
     directories, timestamps, data = read_data(dataset_path)
     event_size = data[0].shape[-1]
 
-    max_iterations = max([num_iterations(length, chunk_size, t, d) for t, d in zip(timestamps, data)])
+    total_iterations = sum([num_iterations(length, chunk_size, t, d) for t, d in zip(timestamps, data)])
     iterators = [iterate_data(length, t, d) for t, d in zip(timestamps, data)]
 
     # Build a progress bar
-    progress_bar = tqdm(total=max_iterations, desc="Chunks")
+    progress_bar = tqdm(total=total_iterations, desc="Chunks")
 
     encoded_timestamps = [[] for _ in range(len(data))]
     encoded_seq_lengths = [[] for _ in range(len(data))]
@@ -163,7 +163,7 @@ def main():
             offset += chunk_size
 
             # Update the progress bar
-            progress_bar.update()
+            progress_bar.update(nactive)
 
     with h5.File(out_path, "w") as f:
         collection = f.create_group("gists")
