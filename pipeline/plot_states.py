@@ -12,10 +12,12 @@ from sklearn.pipeline import Pipeline
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--subsample", default=False, type=int, help="Number of datapoints to subsample")
     parser.add_argument("gesture", help="Gesture to plot")
     parser.add_argument("file", help="HDF5 file with labeled states")
     args = parser.parse_args()
 
+    nsubsample = args.subsample
     gesture_name = args.gesture
     file_path = args.file
 
@@ -43,6 +45,14 @@ def main():
     pca = IncrementalPCA(50)
     tsne = TSNE(n_components=2, perplexity=30, learning_rate=1000, verbose=2)
     pipe = Pipeline([("PCA", pca), ("t-SNE", tsne)])
+
+    if nsubsample:
+        indices = np.arange(len(data))
+        np.random.shuffle(indices)
+        indices = indices[:nsubsample]
+        data = data[indices]
+        rel_time = rel_time[indices]
+        num_events = num_events[indices]
 
     data2d = tsne.fit_transform(data)
 
