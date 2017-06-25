@@ -207,11 +207,14 @@ def main():
                     # Learning rate decay
                     feeds[learning_rate] = initial_learning_rate * 0.95**epoch
 
+                    # Yes, we are actually feeding the final (decoder) state
+                    # back in instead of the encoder state. Somehow this makes
+                    # the network learn better representations.
                     if batch % 200 == 0:
-                        chunk_loss, filtered_chunk_state, _, summary, step = sess.run([loss, encoder.encoded_state, train_step, summaries, global_step], feeds)
+                        chunk_loss, filtered_chunk_state, _, summary, step = sess.run([loss, encoder.final_state, train_step, summaries, global_step], feeds)
                         summary_writer.add_summary(summary, step)
                     else:
-                        chunk_loss, filtered_chunk_state, _ = sess.run([loss, encoder.encoded_state, train_step], feeds)
+                        chunk_loss, filtered_chunk_state, _ = sess.run([loss, encoder.final_state, train_step], feeds)
                     batch_loss += chunk_loss
 
                     if chunk_state is None:
