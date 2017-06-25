@@ -5,14 +5,18 @@ import random
 
 DIRECTIONS = ["up", "down", "left", "right"]
 GESTURES = []
-GESTURES += ["two-fingers-{}".format(d) for d in DIRECTIONS]
-GESTURES += ["tap-index", "tap-two-fingers"]
-GESTURES += ["extend-one", "extend-two", "extend-three"]
+GESTURES += ["tap-index"]
 GESTURES += ["push-hand-{}".format(d) for d in DIRECTIONS]
 GESTURES += ["swipe-{}".format(d) for d in DIRECTIONS]
-GESTURES += ["zoom-in", "zoom-out", "grab", "finger-snap"]
+GESTURES += ["zoom-in", "zoom-out", "finger-snap"]
 GESTURES += ["beckoning", "rotate-outward", "thumbs-up", "ok"]
 
+# The following gestures are scrapped because they are too easily confused with
+# some of the above (see confusion matrix)
+# GESTURES += ["grab"]
+# GESTURES += ["tap-two-fingers"]
+# GESTURES += ["extend-one", "extend-two", "extend-three"]
+# GESTURES += ["two-fingers-{}".format(d) for d in DIRECTIONS]
 
 def main():
     parser = argparse.ArgumentParser()
