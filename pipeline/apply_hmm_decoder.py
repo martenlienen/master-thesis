@@ -9,12 +9,15 @@ import numpy as np
 import scipy.io as sio
 
 
-def viterbi(logits, pi, log_A, B):
-    # Softmax to convert logits to probabilities
-    p = np.exp(logits)
-    p /= np.sum(p, axis=1)[:, np.newaxis]
+def viterbi(logits, pi, log_A, softmax=True):
+    if softmax:
+        # Softmax to convert logits to probabilities
+        p = np.exp(logits)
+        p /= np.sum(p, axis=1)[:, np.newaxis]
+    else:
+        p = logits
 
-    log_delta = np.log(p @ B.T)
+    log_delta = np.log(p)
     log_delta[0] += np.log(pi)
 
     a = np.zeros(log_delta.shape, np.int8)
@@ -35,11 +38,13 @@ def viterbi(logits, pi, log_A, B):
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--probabilities", default=False, action="store_true", dest="probabilities", help="The features are already probabilities (do not apply softmax)")
     parser.add_argument("hmm", help="Path to trained HMM")
     parser.add_argument("dataset", help="Path to classifications")
     parser.add_argument("out", help="Where to store decodings")
     args = parser.parse_args()
 
+    softmax = not args.probabilities
     hmm_path = args.hmm
     dataset_path = args.dataset
     out_path = args.out
@@ -47,7 +52,6 @@ def main():
     values = sio.loadmat(hmm_path)
     pi = np.squeeze(values["pi"])
     A = values["A"]
-    B = values["B"]
 
     with h5.File(dataset_path, "r") as f:
         label_index = list(f["label_index"])
@@ -66,7 +70,7 @@ def main():
 
     log_A = np.log(A)
     with concurrent.futures.ProcessPoolExecutor() as ex:
-        zs = list(ex.map(viterbi, data, [pi] * len(data), [log_A] * len(data), [B] * len(data)))
+        zs = list(ex.map(viterbi, data, [pi] * len(data), [log_A] * len(data), [softmax] * len(data)))
 
     label_index.append("<blank>")
 
@@ -82,6 +86,13 @@ def main():
             grp.attrs["directory"] = d
             grp["timestamps"] = t
             grp["data"] = onehot
+
+            print(name)
+            prev = None
+            for Z in z:
+                if prev is None or prev != Z:
+                    print(label_index[Z])
+                    prev = Z
 
 
 

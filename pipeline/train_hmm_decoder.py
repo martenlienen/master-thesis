@@ -43,7 +43,6 @@ def main():
     nclasses = len(label_index) + 1
     pi = np.ones(nclasses, np.float32) / nclasses
     A = np.zeros((nclasses, nclasses), np.float32)
-    B = np.zeros((nclasses, nclasses), np.float32)
 
     for i in range(nclasses - 1):
         fltr = labels == i
@@ -57,15 +56,7 @@ def main():
     # for v, c in zip(values, counts):
     #     A[-1, v] = c / len(labels)
 
-    for i in range(nclasses):
-        fltr = labels == i
-        B[i] = np.sum(data[fltr], axis=0) / np.count_nonzero(fltr)
-
-    sio.savemat(out_path, {
-        "pi": pi,
-        "A": A,
-        "B": B
-    })
+    sio.savemat(out_path, {"pi": pi, "A": A})
 
 
 if __name__ == "__main__":
