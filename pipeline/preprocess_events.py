@@ -75,10 +75,12 @@ def read_data(directory):
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--based-on", help="Dataset to reuse the normalization parameters from")
     parser.add_argument("dirs", nargs="*", help="File to save data to")
     parser.add_argument("out", help="HDF5 to write to")
     args = parser.parse_args()
 
+    based_on = args.based_on
     directories = args.dirs
     out_path = args.out
 
@@ -88,16 +90,23 @@ def main():
     timestamps = [t for t, d in event_data]
     data = [d for t, d in event_data]
 
-    # Compute mean and standard deviation for normalization
-    ndata = np.sum([d.shape[0] for d in data])
-    with concurrent.futures.ThreadPoolExecutor() as ex:
-        mu = np.sum(list(ex.map(lambda d: np.sum(d, axis=0, dtype=np.float64) / ndata, data)), axis=0)
-        sigma = np.sqrt(np.sum(list(ex.map(lambda d: np.sum(np.square(d - mu), axis=0)  / ndata, data)), axis=0))
+    if based_on:
+        # Reuse normalization parameters from another dataset (e.g. for a
+        # validation set)
+        with h5.File(based_on) as f:
+            mu = np.array(f["/events"].attrs["mu"])
+            sigma = np.array(f["/events"].attrs["sigma"])
+    else:
+        # Compute mean and standard deviation for normalization
+        ndata = np.sum([d.shape[0] for d in data])
+        with concurrent.futures.ThreadPoolExecutor() as ex:
+            mu = np.sum(list(ex.map(lambda d: np.sum(d, axis=0, dtype=np.float64) / ndata, data)), axis=0)
+            sigma = np.sqrt(np.sum(list(ex.map(lambda d: np.sum(np.square(d - mu), axis=0)  / ndata, data)), axis=0))
 
-    # We computed mu and sigma in double precision, but now convert them back
-    # so that the data will not be converted
-    mu = mu.astype(np.float32)
-    sigma = sigma.astype(np.float32)
+        # We computed mu and sigma in double precision, but now convert them back
+        # so that the data will not be converted
+        mu = mu.astype(np.float32)
+        sigma = sigma.astype(np.float32)
 
     # Normalize the data
     for i in range(len(data)):
