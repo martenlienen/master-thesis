@@ -69,7 +69,7 @@ class RandomSliceGenerator:
 GRUClassifier = namedtuple("GRUClassifier", ["seq_lengths", "inputs", "initial_state", "logits", "final_state", "batch_size", "chunk_size"])
 
 
-def build_classifier(nlayers, memory_size, feature_size, nclasses):
+def build_classifier(nlayers, ndense_layers, memory_size, feature_size, nclasses):
     inputs = tf.placeholder(tf.float32, shape=(None, None, feature_size), name="sequences")
     seq_lengths = tf.placeholder(tf.int32, shape=(None,), name="sequence_lengths")
     batch_size = tf.shape(seq_lengths)[0]
@@ -84,10 +84,21 @@ def build_classifier(nlayers, memory_size, feature_size, nclasses):
                                             initial_state=tuple(tf.split(initial_state, nlayers, axis=1)),
                                             dtype=tf.float32)
 
-        W = tf.get_variable("W", (memory_size, nclasses), tf.float32)
-        b = tf.get_variable("b", (nclasses,), tf.float32)
-        logits = tf.nn.xw_plus_b(tf.reshape(outputs, (-1, memory_size)), W, b)
-        logits = tf.reshape(logits, [tf.shape(outputs)[0], tf.shape(outputs)[1], nclasses], name="logits")
+        original_output_shape = tf.shape(outputs)
+        outputs = tf.reshape(outputs, (-1, memory_size))
+        for i in range(ndense_layers):
+            with tf.variable_scope(f"dense-{i + 1}"):
+                W = tf.get_variable("W", (memory_size, memory_size), tf.float32)
+                b = tf.get_variable("b", (memory_size,), tf.float32)
+                outputs = tf.nn.xw_plus_b(outputs, W, b)
+                outputs = tf.nn.elu(outputs)
+
+        with tf.variable_scope("logit-projection"):
+            W = tf.get_variable("W", (memory_size, nclasses), tf.float32)
+            b = tf.get_variable("b", (nclasses,), tf.float32)
+            logits = tf.nn.xw_plus_b(outputs, W, b)
+
+        logits = tf.reshape(logits, [original_output_shape[0], original_output_shape[1], nclasses], name="logits")
         final_state = tf.concat(states, axis=1, name="final_state")
 
     return GRUClassifier(seq_lengths, inputs, initial_state, logits, final_state, batch_size, chunk_size)
@@ -102,6 +113,7 @@ def main():
     parser.add_argument("--length", default=1000, type=int, help="Length of sequences to train on")
     parser.add_argument("--memory", default=128, type=int, help="Number of memory cells")
     parser.add_argument("--layers", default=3, type=int, help="Number of recurrent layers")
+    parser.add_argument("--dense-layers", default=0, type=int, help="Number of dense layers on top")
     parser.add_argument("--chunk-size", default=200, type=int, help="Length of chunks to process at once")
     parser.add_argument("dataset", help="HDF5 file with labeled features")
     args = parser.parse_args()
@@ -113,6 +125,7 @@ def main():
     sequence_length = args.length
     memory = args.memory
     nlayers = args.layers
+    ndense_layers = args.dense_layers
     chunk_size = args.chunk_size
     dataset_path = args.dataset
 
