@@ -171,7 +171,7 @@ def main():
     summary_writer = tf.summary.FileWriter(log_dir)
 
     init = tf.global_variables_initializer()
-    saver = tf.train.Saver(max_to_keep=5, keep_checkpoint_every_n_hours=1)
+    saver = tf.train.Saver(max_to_keep=3, keep_checkpoint_every_n_hours=5)
     sv = tf.train.Supervisor(init_op=init, logdir=log_dir, summary_op=None, saver=saver)
     with sv.managed_session() as sess:
         for epoch in range(epochs):
