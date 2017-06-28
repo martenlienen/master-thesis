@@ -2,7 +2,9 @@
 
 import argparse
 from collections import namedtuple
+import csv
 from datetime import datetime
+import os
 
 import h5py as h5
 import numpy as np
@@ -10,6 +12,18 @@ import tensorflow as tf
 from tqdm import tqdm
 
 import runner
+
+
+def append_metrics(path, metrics):
+    is_new = not os.path.isfile(path)
+
+    with open(path, "a") as f:
+        writer = csv.writer(f)
+
+        if is_new:
+            writer.writerow(["loss", "accuracy"])
+
+        writer.writerow([metrics["loss"], metrics["accuracy"]])
 
 
 def read_data(path):
@@ -29,7 +43,7 @@ def read_data(path):
     return label_index, data, labels
 
 
-class RandomSliceGenerator:
+class DataGenerator:
     def __init__(self, batch_size, length, data, labels):
         self.batch_size = batch_size
         self.length = length
@@ -174,17 +188,122 @@ def main():
         for epoch in range(epochs):
             print("# Epoch {}".format(epoch + 1))
 
-            loss_metric = runner.TensorMetric("loss", loss)
-            accuracy_metric = runner.AccuracyMetric("accuracy", num_correct)
-            model = runner.Model(clsfr.inputs, clsfr.logits, clsfr.initial_state, clsfr.final_state, clsfr.seq_lengths, labels)
+            nbatches = 0
+            epoch_loss = 0.0
+            epoch_ncorrect = 0.0
+            epoch_total_length = 0
 
-            train_generator = RandomSliceGenerator(batch_size, sequence_length, train_data, train_labels)
-            train_runner = runner.Runner(metrics=[loss_metric, accuracy_metric])
-            train_runner.run(sess, model, train_generator, chunk_size, extra_feeds={learning_rate: initial_learning_rate * 0.95**epoch}, extra_fetches={"train": train_step})
+            generator = DataGenerator(batch_size, sequence_length, train_data, train_labels)
+            batches = tqdm(range(generator.num_batches()))
+            iterator = generator.iterate()
+            for batch in batches:
+                seq_lengths, batch_data, batch_labels = next(iterator)
 
-            val_generator = RandomSliceGenerator(batch_size, sequence_length, val_data, val_labels)
-            val_runner = runner.Runner(metrics=[loss_metric, accuracy_metric])
-            val_runner.run(sess, model, val_generator, chunk_size)
+                batch_total_length = np.sum(seq_lengths)
+
+                # The training data is split into fixed length chunks so that
+                # sequences of arbitrary length can be handled
+                chunk_state = None
+                offset = 0
+
+                # Metrics
+                batch_loss = 0.0
+                batch_ncorrect = 0
+
+                # The loop always runs at least once, even if all sequences are
+                # empty, so that the final states are properly set
+                while np.any(seq_lengths > 0) or offset == 0:
+                    chunk_lengths = np.minimum(chunk_size, seq_lengths)
+                    chunk_data = batch_data[:, offset:offset + max(chunk_lengths)]
+                    chunk_labels = batch_labels[:, offset:offset + max(chunk_lengths)]
+
+                    feeds = {clsfr.inputs: chunk_data,
+                             clsfr.seq_lengths: chunk_lengths,
+                             labels: chunk_labels,
+                             learning_rate: initial_learning_rate * 0.95**epoch}
+
+                    if chunk_state is not None:
+                        feeds[clsfr.initial_state] = chunk_state
+
+                    chunk_state, chunk_loss, chunk_ncorrect, _ = sess.run([clsfr.final_state, loss, num_correct, train_step], feeds)
+
+                    offset += chunk_size
+                    seq_lengths = np.maximum(0, seq_lengths - chunk_size)
+
+                    batch_loss += chunk_loss
+                    batch_ncorrect += chunk_ncorrect
+
+                nbatches += 1
+                epoch_loss += batch_loss
+                epoch_ncorrect += batch_ncorrect
+                epoch_total_length += batch_total_length
+                batches.set_description(f"Loss {epoch_loss / nbatches:.3f} ({batch_loss:.1f}), Accuracy {epoch_ncorrect / epoch_total_length:.3f} ({batch_ncorrect / batch_total_length:.2f})")
+
+            if sv.should_stop():
+                break
+
+            if not validation_path:
+                continue
+
+            train_metrics = {"loss": epoch_loss / nbatches, "accuracy": epoch_ncorrect / epoch_total_length}
+            append_metrics(os.path.join(log_dir, "train.csv"), train_metrics)
+
+            # Validation set
+            nbatches = 0
+            epoch_loss = 0.0
+            epoch_ncorrect = 0.0
+            epoch_total_length = 0
+
+            generator = DataGenerator(batch_size, sequence_length, val_data, val_labels)
+            batches = tqdm(range(generator.num_batches()))
+            iterator = generator.iterate()
+            for batch in batches:
+                seq_lengths, batch_data, batch_labels = next(iterator)
+
+                batch_total_length = np.sum(seq_lengths)
+
+                # The training data is split into fixed length chunks so that
+                # sequences of arbitrary length can be handled
+                chunk_state = None
+                offset = 0
+
+                # Metrics
+                batch_loss = 0.0
+                batch_ncorrect = 0
+
+                # The loop always runs at least once, even if all sequences are
+                # empty, so that the final states are properly set
+                while np.any(seq_lengths > 0) or offset == 0:
+                    chunk_lengths = np.minimum(chunk_size, seq_lengths)
+                    chunk_data = batch_data[:, offset:offset + max(chunk_lengths)]
+                    chunk_labels = batch_labels[:, offset:offset + max(chunk_lengths)]
+
+                    feeds = {clsfr.inputs: chunk_data,
+                             clsfr.seq_lengths: chunk_lengths,
+                             labels: chunk_labels}
+
+                    if chunk_state is not None:
+                        feeds[clsfr.initial_state] = chunk_state
+
+                    chunk_state, chunk_loss, chunk_ncorrect = sess.run([clsfr.final_state, loss, num_correct], feeds)
+
+                    offset += chunk_size
+                    seq_lengths = np.maximum(0, seq_lengths - chunk_size)
+
+                    batch_loss += chunk_loss
+                    batch_ncorrect += chunk_ncorrect
+
+                nbatches += 1
+                epoch_loss += batch_loss
+                epoch_ncorrect += batch_ncorrect
+                epoch_total_length += batch_total_length
+                batches.set_description(f"Loss {epoch_loss / nbatches:.3f} ({batch_loss:.1f}), Accuracy {epoch_ncorrect / epoch_total_length:.3f} ({batch_ncorrect / batch_total_length:.2f})")
+
+            if sv.should_stop():
+                break
+
+            val_metrics = {"loss": epoch_loss / nbatches, "accuracy": epoch_ncorrect / epoch_total_length}
+            append_metrics(os.path.join(log_dir, "val.csv"), val_metrics)
 
             if sv.should_stop():
                 break

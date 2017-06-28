@@ -2,14 +2,29 @@
 
 import argparse
 from collections import namedtuple
+import csv
 from datetime import datetime
+import os
 
 import h5py as h5
 import numpy as np
 import tensorflow as tf
 from tqdm import tqdm
+import pandas as pd
 
 import runner
+
+
+def append_metrics(path, metrics):
+    is_new = not os.path.isfile(path)
+
+    with open(path, "a") as f:
+        writer = csv.writer(f)
+
+        if is_new:
+            writer.writerow(["loss", "label_error_rate"])
+
+        writer.writerow([metrics["loss"], metrics["label_error_rate"]])
 
 
 def read_data(path):
@@ -250,6 +265,9 @@ def main():
             if not validation_path:
                 continue
 
+            train_metrics = {"loss": epoch_loss / nbatches, "label_error_rate": epoch_label_error / epoch_total_length}
+            append_metrics(os.path.join(log_dir, "train.csv"), train_metrics)
+
             # Validation set
             nbatches = 0
             epoch_loss = 0.0
@@ -305,6 +323,10 @@ def main():
 
             if sv.should_stop():
                 break
+
+            val_metrics = {"loss": epoch_loss / nbatches, "label_error_rate": epoch_label_error / epoch_total_length}
+            append_metrics(os.path.join(log_dir, "val.csv"), val_metrics)
+
 
 
 if __name__ == "__main__":
