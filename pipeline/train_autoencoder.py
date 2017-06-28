@@ -171,7 +171,8 @@ def main():
     summary_writer = tf.summary.FileWriter(log_dir)
 
     init = tf.global_variables_initializer()
-    saver = tf.train.Saver(max_to_keep=3, keep_checkpoint_every_n_hours=5)
+    saver = tf.train.Saver(max_to_keep=1)
+    epoch_saver = tf.train.Saver(max_to_keep=0)
     sv = tf.train.Supervisor(init_op=init, logdir=log_dir, summary_op=None, saver=saver)
     with sv.managed_session() as sess:
         for epoch in range(epochs):
@@ -238,8 +239,10 @@ def main():
                 loss_values.append(batch_loss)
                 batches.set_description("Loss {:.3f} ({:.5f})".format(np.mean(loss_values), batch_loss))
 
-                if sv.should_stop():
-                    break
+            epoch_saver.save(sess, os.path.join(log_dir, f"epoch-{epoch}.ckpt"))
+
+            if sv.should_stop():
+                break
 
 
 if __name__ == "__main__":
