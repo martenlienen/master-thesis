@@ -1,12 +1,12 @@
 %%% -*- TeX-master: "../main" -*-
-\chapter{Dataset Acquisition}
-\label{chapter:acquisition}
+\chapter{A Gesture Dataset}
+\label{cha:gesture-dataset}
 
 \section{Recording Setup}
 \label{sec:setup}
 
-\section{Labeling}
-\label{sec:labeling}
+\section{Data Labeling}
+\label{sec:data-labeling}
 
 The data is first manually labeled with a specifically written labeling program that allows marking the beginning and end of a gesture with a precision of about 0.1 seconds.
 
@@ -40,9 +40,12 @@ A distance of around 40 centimeters seems optimal, because it is close enough fo
 
 \begin{figure}
   \centering
-  \includegraphics[width=\textwidth]{figures/distances}
+  % \includegraphics[width=\textwidth]{figures/distances}
   \caption{Event density in \nicefrac{\#}{0.1s}. All three recordings have a constant
     baseline of noise at about 1000 events per 100ms. The gestures performed at a
     distance of 80cm are not really distinguishable from the background noise
     anymore and it is hard to recognize anything even for humans, so we exlude them.}
 \end{figure}
+
+\section{Preprocessing}
+\label{sec:preprocessing}
