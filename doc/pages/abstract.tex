@@ -1,1 +1,14 @@
 \chapter{\abstractname}
+
+In 2008 the Institute of Neuroinformatics at UZH/ETHZ released a frame-free,
+neuromorphic vision sensor. Its output is a continuous-time time series of
+events that signify a local intensity change at one of its 128x128 pixels. In
+this thesis, we utilize recurrent neural networks to perform gesture recognition
+on such time series. Its main contribution is the transformation from a
+continuous-time time series to a discrete-time one using an autoencoder network
+which improves the performance of downstream recognition systems significantly.
+In particular, we compare three different transformations of the event stream:
+the raw event data, visual features extracted with a pre-trained neural network
+from frame reconstructions and representations learned by an autoencoder. We
+assess their quality by comparing the performance of recurrent neural networks
+trained on each of these to recognize the underlying gestures.
