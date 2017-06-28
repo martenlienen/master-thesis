@@ -148,6 +148,7 @@ def main():
     parser.add_argument("--layers", default=3, type=int, help="Number of recurrent layers")
     parser.add_argument("--dense-layers", default=0, type=int, help="Number of dense layers on top")
     parser.add_argument("--chunk-size", default=200, type=int, help="Length of chunks to process at once")
+    parser.add_argument("--decay-base", default=0.95, type=float, help="Learning rate decay base")
     parser.add_argument("--validation", help="HDF5 file with labeled validation data")
     parser.add_argument("dataset", help="HDF5 file with labeled features")
     args = parser.parse_args()
@@ -161,6 +162,7 @@ def main():
     nlayers = args.layers
     ndense_layers = args.dense_layers
     chunk_size = args.chunk_size
+    decay_base = args.decay_base
     validation_path = args.validation
     dataset_path = args.dataset
 
@@ -240,7 +242,7 @@ def main():
                     feeds = {clsfr.inputs: chunk_data,
                              clsfr.seq_lengths: chunk_lengths,
                              labels: (chunk_label_indices, chunk_label_values, (len(chunk_data), np.max(chunk_lengths))),
-                             learning_rate: initial_learning_rate * 0.95**epoch}
+                             learning_rate: initial_learning_rate * decay_base**epoch}
 
                     if chunk_state is not None:
                         feeds[clsfr.initial_state] = chunk_state
