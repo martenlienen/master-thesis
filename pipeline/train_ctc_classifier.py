@@ -147,7 +147,6 @@ def main():
     parser.add_argument("--memory", default=128, type=int, help="Number of memory cells")
     parser.add_argument("--layers", default=3, type=int, help="Number of recurrent layers")
     parser.add_argument("--dense-layers", default=0, type=int, help="Number of dense layers on top")
-    parser.add_argument("--chunk-size", default=200, type=int, help="Length of chunks to process at once")
     parser.add_argument("--decay-base", default=0.95, type=float, help="Learning rate decay base")
     parser.add_argument("--validation", help="HDF5 file with labeled validation data")
     parser.add_argument("dataset", help="HDF5 file with labeled features")
@@ -161,7 +160,6 @@ def main():
     memory = args.memory
     nlayers = args.layers
     ndense_layers = args.dense_layers
-    chunk_size = args.chunk_size
     decay_base = args.decay_base
     validation_path = args.validation
     dataset_path = args.dataset
@@ -221,39 +219,12 @@ def main():
 
                 batch_total_length = len(label_values)
 
-                # The training data is split into fixed length chunks so that
-                # sequences of arbitrary length can be handled
-                chunk_state = None
-                offset = 0
+                feeds = {clsfr.inputs: data,
+                         clsfr.seq_lengths: seq_lengths,
+                         labels: (label_indices, label_values, (len(data), np.max(seq_lengths))),
+                         learning_rate: initial_learning_rate * decay_base**epoch}
 
-                # Metrics
-                batch_loss = 0.0
-                batch_label_error = 0
-
-                # The loop always runs at least once, even if all sequences are
-                # empty, so that the final states are properly set
-                while np.any(seq_lengths > 0) or offset == 0:
-                    chunk_lengths = np.minimum(chunk_size, seq_lengths)
-                    chunk_data = data[:, offset:offset + max(chunk_lengths)]
-                    fltr = (label_indices[:, 1] >= offset) & (label_indices[:, 1] < offset + max(chunk_lengths))
-                    chunk_label_indices = label_indices[fltr, :]
-                    chunk_label_values = label_values[fltr]
-
-                    feeds = {clsfr.inputs: chunk_data,
-                             clsfr.seq_lengths: chunk_lengths,
-                             labels: (chunk_label_indices, chunk_label_values, (len(chunk_data), np.max(chunk_lengths))),
-                             learning_rate: initial_learning_rate * decay_base**epoch}
-
-                    if chunk_state is not None:
-                        feeds[clsfr.initial_state] = chunk_state
-
-                    chunk_state, chunk_loss, chunk_label_error, _ = sess.run([clsfr.final_state, loss, total_label_error, train_step], feeds)
-
-                    offset += chunk_size
-                    seq_lengths = np.maximum(0, seq_lengths - chunk_size)
-
-                    batch_loss += chunk_loss
-                    batch_label_error += chunk_label_error
+                batch_loss, batch_label_error, _ = sess.run([loss, total_label_error, train_step], feeds)
 
                 nbatches += 1
                 epoch_loss += batch_loss
@@ -284,38 +255,11 @@ def main():
 
                 batch_total_length = len(label_values)
 
-                # The training data is split into fixed length chunks so that
-                # sequences of arbitrary length can be handled
-                chunk_state = None
-                offset = 0
+                feeds = {clsfr.inputs: data,
+                         clsfr.seq_lengths: seq_lengths,
+                         labels: (label_indices, label_values, (len(data), np.max(seq_lengths)))}
 
-                # Metrics
-                batch_loss = 0.0
-                batch_label_error = 0
-
-                # The loop always runs at least once, even if all sequences are
-                # empty, so that the final states are properly set
-                while np.any(seq_lengths > 0) or offset == 0:
-                    chunk_lengths = np.minimum(chunk_size, seq_lengths)
-                    chunk_data = data[:, offset:offset + max(chunk_lengths)]
-                    fltr = (label_indices[:, 1] >= offset) & (label_indices[:, 1] < offset + max(chunk_lengths))
-                    chunk_label_indices = label_indices[fltr, :]
-                    chunk_label_values = label_values[fltr]
-
-                    feeds = {clsfr.inputs: chunk_data,
-                             clsfr.seq_lengths: chunk_lengths,
-                             labels: (chunk_label_indices, chunk_label_values, (len(chunk_data), np.max(chunk_lengths)))}
-
-                    if chunk_state is not None:
-                        feeds[clsfr.initial_state] = chunk_state
-
-                    chunk_state, chunk_loss, chunk_label_error = sess.run([clsfr.final_state, loss, total_label_error], feeds)
-
-                    offset += chunk_size
-                    seq_lengths = np.maximum(0, seq_lengths - chunk_size)
-
-                    batch_loss += chunk_loss
-                    batch_label_error += chunk_label_error
+                batch_loss, batch_label_error = sess.run([loss, total_label_error], feeds)
 
                 nbatches += 1
                 epoch_loss += batch_loss
