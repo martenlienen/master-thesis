@@ -115,6 +115,7 @@ def main():
     parser.add_argument("--layers", default=3, type=int, help="Number of recurrent layers")
     parser.add_argument("--dense-layers", default=0, type=int, help="Number of dense layers on top")
     parser.add_argument("--chunk-size", default=200, type=int, help="Length of chunks to process at once")
+    parser.add_argument("--validation", help="HDF5 file with labeled validation data")
     parser.add_argument("dataset", help="HDF5 file with labeled features")
     args = parser.parse_args()
 
@@ -127,11 +128,15 @@ def main():
     nlayers = args.layers
     ndense_layers = args.dense_layers
     chunk_size = args.chunk_size
+    validation_path = args.validation
     dataset_path = args.dataset
 
-    label_index, data, data_labels = read_data(dataset_path)
+    label_index, train_data, train_labels = read_data(dataset_path)
 
-    clsfr = build_classifier(nlayers, memory, data[0].shape[-1], len(label_index) + 1)
+    if validation_path:
+        _, val_data, val_labels = read_data(validation_path)
+
+    clsfr = build_classifier(nlayers, ndense_layers, memory, train_data[0].shape[-1], len(label_index) + 1)
 
     # Compute the cross-entropy between labels and predictions
     labels = tf.placeholder(tf.int32, shape=(None, None), name="labels")
@@ -173,12 +178,11 @@ def main():
             accuracy_metric = runner.AccuracyMetric("accuracy", num_correct)
             model = runner.Model(clsfr.inputs, clsfr.logits, clsfr.initial_state, clsfr.final_state, clsfr.seq_lengths, labels)
 
-            train_generator = RandomSliceGenerator(batch_size, sequence_length, data[:-2], data_labels[:-2])
-            val_generator = RandomSliceGenerator(batch_size, sequence_length, data[-2:], data_labels[-2:])
-
+            train_generator = RandomSliceGenerator(batch_size, sequence_length, train_data, train_labels)
             train_runner = runner.Runner(metrics=[loss_metric, accuracy_metric])
             train_runner.run(sess, model, train_generator, chunk_size, extra_feeds={learning_rate: initial_learning_rate * 0.95**epoch}, extra_fetches={"train": train_step})
 
+            val_generator = RandomSliceGenerator(batch_size, sequence_length, val_data, val_labels)
             val_runner = runner.Runner(metrics=[loss_metric, accuracy_metric])
             val_runner.run(sess, model, val_generator, chunk_size)
 
