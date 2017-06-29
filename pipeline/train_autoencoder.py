@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import csv
 from datetime import datetime
 import os
 
@@ -178,11 +179,6 @@ def main():
     gradients, gradient_norm = tf.clip_by_global_norm(gradients, 5.0)
     train_step = optimizer.apply_gradients(zip(gradients, variables), global_step=global_step)
 
-    tf.summary.histogram("gradient_norm", gradient_norm)
-    tf.summary.scalar("loss", loss)
-    summaries = tf.summary.merge_all()
-    summary_writer = tf.summary.FileWriter(log_dir)
-
     init = tf.global_variables_initializer()
     saver = tf.train.Saver(max_to_keep=1)
     epoch_saver = tf.train.Saver(max_to_keep=0)
@@ -221,14 +217,7 @@ def main():
                     # Learning rate decay
                     feeds[learning_rate] = initial_learning_rate * 0.95**epoch
 
-                    # Yes, we are actually feeding the final (decoder) state
-                    # back in instead of the encoder state. Somehow this makes
-                    # the network learn better representations.
-                    if batch % 200 == 0:
-                        chunk_loss, filtered_chunk_state, _, summary, step = sess.run([loss, encoder.final_state, train_step, summaries, global_step], feeds)
-                        summary_writer.add_summary(summary, step)
-                    else:
-                        chunk_loss, filtered_chunk_state, _ = sess.run([loss, encoder.final_state, train_step], feeds)
+                    chunk_loss, filtered_chunk_state, _ = sess.run([loss, encoder.final_state, train_step], feeds)
                     batch_loss += chunk_loss
 
                     if chunk_state is None:
