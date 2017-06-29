@@ -2,11 +2,24 @@
 
 import argparse
 from datetime import datetime
+import os
 
 import h5py as h5
 import numpy as np
 import tensorflow as tf
 from tqdm import tqdm
+
+
+def append_loss(path, loss):
+    is_new = not os.path.isfile(path)
+
+    with open(path, "a") as f:
+        writer = csv.writer(f)
+
+        if is_new:
+            writer.writerow(["loss"])
+
+        writer.writerow([loss])
 
 
 class DataGenerator:
@@ -240,6 +253,8 @@ def main():
                 batches.set_description("Loss {:.3f} ({:.5f})".format(np.mean(loss_values), batch_loss))
 
             epoch_saver.save(sess, os.path.join(log_dir, f"epoch-{epoch}.ckpt"))
+
+            append_loss(os.path.join(log_dir, "train.csv"), np.mean(loss_values))
 
             if sv.should_stop():
                 break
