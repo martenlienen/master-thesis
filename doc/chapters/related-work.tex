@@ -1,3 +1,34 @@
 %%% -*- TeX-master: "../main" -*-
 \chapter{Related Work}
 \label{cha:related-work}
+
+\citeauthor{manualfeatures} were one of the first to use the DVS for gesture
+recognition when they detected and distinguished between the three throws of the
+classical rock-paper-scissors game. In a first step they accumulate events into
+grayscale images in a similar fashion as demonstrated in Figure
+\ref{fig:intro:objects}. Then they compute hand-designed features over these
+images, for example hand boundaries and the visible area of the palm, as was
+common at the time in classical computer vision with features like the history
+of gradients. Note, that their work was published in \citeyear{manualfeatures}
+and thus predates the deep learning era.
+
+The DVS' inventors in Zurich and Samsung's R\&D lab in Suwon collaborated over
+several years on a project to implement gesture recognition with spiking neural
+networks and leaky integrate-and-fire (LIF) neurons
+\cite{lif12,lifhmm12,livedemo}. Spiking neural networks (SNNs) are trainable
+models of the brain and are thus a good fit for neuromorphic sensors such as the
+DVS which is itself inspired by the way retina cells communicate with the brain.
+LIF neurons are one of the building blocks of SNNs and basically keep a count of
+the events over time in a small part of the DVS' field of view which has a
+denoising effect. With this setup the group achieved a recognition rate of over
+90\% with 11 different gestures.
+
+In \citeyear{spatiotemporal} another group at Samsung applied deep learning to
+the problem \cite{spatiotemporal}. First, they super-resolve the event stream
+with spatiotemporal demosaicing which improved their system's performance on
+gestures performed in a distance of more than 4 meters from the DVS. Next, they
+extend the naive frame reconstruction technique with temporal information by
+stacking three successive grayscale images into the color channels of an RGB
+image. Finally, they train a GoogLeNet CNN to classify their temporal-fusion
+frames and decode the network output with an LSTM. They achieved a recognition
+rate of over 90\% with 6 gestures and 5 distances.
