@@ -8,6 +8,7 @@ import sys
 
 import h5py as h5
 import numpy as np
+import pandas as pd
 import tensorflow as tf
 from tqdm import tqdm
 
@@ -29,27 +30,49 @@ def read_data(path):
     return directories, timestamps, data
 
 
+def find_checkpoint(log_dir, criterion):
+    if os.path.isfile(criterion):
+        meta_path = criterion
+    elif criterion == "latest":
+        meta_files = glob.glob(os.path.join(log_dir, "epoch-*.ckpt.meta"))
+        if len(meta_files) == 0:
+            print("Could not find a MetaGraph in {}".format(log_dir))
+            sys.exit(1)
+        meta_path = max(meta_files, key=lambda p: int(re.search("epoch-([0-9]+)\.ckpt\.meta$", p).group(1)))
+    else:
+        kind, column = criterion.split("-", maxsplit=1)
+        metrics = pd.read_csv(os.path.join(log_dir, "val.csv"))
+
+        if kind == "max":
+            best_epoch = metrics[column].argmax()
+        else:
+            best_epoch = metrics[column].argmin()
+
+        meta_path = os.path.join(log_dir, f"epoch-{best_epoch}.ckpt.meta")
+
+    checkpoint_path = meta_path[:-5]
+
+    return meta_path, checkpoint_path
+
+
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--checkpoint", default="latest", help="Path to meta file or criterion for checkpoint to load")
     parser.add_argument("--chunk-size", default=1000, type=int, help="Split sequences into chunks of length n")
     parser.add_argument("log_dir", help="Log directory")
     parser.add_argument("dataset", help="Preprocessed events to apply to")
     parser.add_argument("out", help="HDF5 file to write to")
     args = parser.parse_args()
 
+    criterion = args.checkpoint
     chunk_size = args.chunk_size
     log_dir = args.log_dir
     dataset_path = args.dataset
     out_path = args.out
 
-    meta_files = glob.glob(os.path.join(log_dir, "*.meta"))
-    if len(meta_files) == 0:
-        print("Could not find a MetaGraph in {}".format(log_dir))
-        sys.exit(1)
-    latest_meta_file = max(meta_files, key=lambda p: int(re.search("([0-9]+)\.meta$", p).group(1)))
-    latest_checkpoint = latest_meta_file[:-5]
+    meta_path, checkpoint_path = find_checkpoint(log_dir, criterion)
 
-    saver = tf.train.import_meta_graph(latest_meta_file)
+    saver = tf.train.import_meta_graph(meta_path)
     g = tf.get_default_graph()
     sequences = g.get_tensor_by_name("sequences:0")
     sequence_lengths = g.get_tensor_by_name("sequence_lengths:0")
@@ -60,7 +83,7 @@ def main():
     directories, timestamps, data = read_data(dataset_path)
 
     with tf.Session() as sess:
-        saver.restore(sess, latest_checkpoint)
+        saver.restore(sess, checkpoint_path)
 
         data_lengths = np.array([d.shape[0] for d in data])
         max_length = max(data_lengths)
