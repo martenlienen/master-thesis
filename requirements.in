@@ -24,5 +24,8 @@ scikit-learn
 tensorflow
 keras
 
+# Levenshtein
+editdistance
+
 # Progress bar
 tqdm
