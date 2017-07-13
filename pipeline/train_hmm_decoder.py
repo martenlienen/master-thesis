@@ -20,23 +20,16 @@ def main():
         label_index = list(f["label_index"])
 
         labels = []
-        data = []
 
         def collect(name, obj):
-            if isinstance(obj, h5.Group) and "labels" in obj and "data" in obj:
+            if isinstance(obj, h5.Group) and "labels" in obj:
                 labels.append(np.array(obj["labels"]))
-                data.append(np.array(obj["data"]))
 
         f.visititems(collect)
 
-    ndata = len(data)
+    ndata = len(labels)
 
     labels = np.concatenate(labels, axis=0)
-    data = np.concatenate(data, axis=0)
-
-    # Convert logits to probabilites with softmax
-    data = np.exp(data)
-    data /= np.sum(data, axis=1)[:, np.newaxis]
 
     labels[labels == -1] = len(label_index)
 
