@@ -85,11 +85,14 @@ network, an autoencoder, to learn an efficient compression directly. We call the
 representations learned by the autoencoder \emph{gists} because they encode the
 gist of the input.
 
-Section \ref{sec:framewise} explains framewise classification and how a network
-is trained for that. These local classifications are decoded with an HMM and
-some custom post-processing which is described in Section \ref{sec:hmm}. Lastly,
-we introduce connectionist temporal classification in Section \ref{sec:ctc} and
-explain how it combines the steps of classification and decoding into one.
+Section \ref{sec:framewise} explains framewise classification and the network
+architecture that we use for that task and all that follow. These local
+classifications are decoded with an HMM which is described in Section
+\ref{sec:hmm}. In Section \ref{sec:hmm-segmentation} we split the decoding
+process into two phases, first the input is segmented which is followed up by
+segment classification, both with an HMM. Lastly, we introduce connectionist
+temporal classification in Section \ref{sec:ctc} and explain how it combines the
+steps of classification and decoding into one.
 
 \section{Recurrent Neural Networks}
 \label{sec:rnns}
@@ -280,48 +283,179 @@ three times into the three color channels of an RGB image.
 \section{Representation Learning with an Autoencoder}
 \label{sec:autoencoder}
 
-A classic autoencoder is a neural network that takes an input and reproduces it,
-so it is approximating the identity function. The point to that is that these
-networks are often hour-glass shaped, i.e. at some intermediate point in the
-network the data has to flow through a funnel, a layer whose output is of
-smaller dimensionality than the network input. This forces the network to learn
-a low-dimensional representation of the input data from which it can later
+An autoencoder is a neural network that takes an input and reproduces it, so it
+is approximating the identity function. There are different flavors to this
+concept, though we are going to focus on the type that is in some form
+hour-glass shaped. That means that at some intermediate point in the network the
+data has to flow through a funnel, a layer whose output dimensionality is
+smaller than the network input. This forces the network to learn a
+low-dimensional representation of the input data from which it can later
 reconstruct the input. The advantage of using a neural network for
 dimensionality reduction is that the mapping can be highly non-linear and it
 works on sequences.
 
-Our autoencoder follows the architecture that was proposed in \cite{gru},
-alongside GRU, for neural machine translation. The idea is that, first, an
-encoder network reads the complete, variable-length input sequence and the
-decoder's hidden state is initialized with the final hidden state of the
-encoder. After that, you generate a sequence from the decoder until some
-stopping criterion is fulfilled and finally compute some loss between the inputs
-and outputs. In this case the ``funnel'' is the hidden state that is handed over
-from the encoder to the decoder, because it is the only connection between the
-two and thus has to encode the complete input sequence. We call this vector the
-\emph{gist} because it is the gist of the input. Our decoder differs from the
-original proposal because the preprocessed event sequence is at least partly
-continuous while the translation network works over a finite alphabet which they
-1-hot encode.
+\begin{figure}
+  \centering
+  \begin{tikzpicture}[scale=1.8]
+    \node[draw,circle](x1) at (0, 0) {$x^{(1)}$};
+    \node[draw,circle](x2) at (1, 0) {$x^{(2)}$};
+    \node[draw,circle](xn) at (3, 0) {$x^{(n)}$};
+    \node[draw,circle](e1) at (0, 1) {$e^{(1)}$};
+    \node[draw,circle](e2) at (1, 1) {$e^{(2)}$};
+    \node[draw,circle](en) at (3, 1) {$e^{(n)}$};
 
+    \fill (1.9, 1) node[draw,circle,fill,inner sep=0,minimum size=0.08cm]{};
+    \fill (2.0, 1) node[draw,circle,fill,inner sep=0,minimum size=0.08cm]{};
+    \fill (2.1, 1) node[draw,circle,fill,inner sep=0,minimum size=0.08cm]{};
+    
+    \draw[->] (x1) -- (e1);
+    \draw[->] (x2) -- (e2);
+    \draw[->] (xn) -- (en);
+
+    \draw[->] (e1) -- (e2);
+    \draw[->] (e2) -- (1.8, 1);
+    \draw[->] (2.2, 1) -- (en);
+
+    \node[draw,circle](y1) at (4, 3) {$y^{(1)}$};
+    \node[draw,circle](y2) at (5, 3) {$y^{(2)}$};
+    \node[draw,circle](yn) at (7, 3) {$y^{(n)}$};
+    \node[draw,circle](d1) at (4, 2) {$d^{(1)}$};
+    \node[draw,circle](d2) at (5, 2) {$d^{(2)}$};
+    \node[draw,circle](dn) at (7, 2) {$d^{(n)}$};
+    
+    \fill (5.9, 2) node[draw,circle,fill,inner sep=0,minimum size=0.08cm]{};
+    \fill (6.0, 2) node[draw,circle,fill,inner sep=0,minimum size=0.08cm]{};
+    \fill (6.1, 2) node[draw,circle,fill,inner sep=0,minimum size=0.08cm]{};
+    
+    \draw[->] (d1) -- (y1);
+    \draw[->] (d2) -- (y2);
+    \draw[->] (dn) -- (yn);
+
+    \draw[->] (d1) -- (d2);
+    \draw[->] (d2) -- (5.8, 2);
+    \draw[->] (6.2, 2) -- (dn);
+
+    \draw[->] (en) -- (d1);
+  \end{tikzpicture}
+  \caption{Sketch of our autoencoder architecture that encodes an input sequence
+    $x$ of length $n$ into hidden states $e$. The decider is trained to decode
+    the last hidden state $e^{(n)}$ into a sequence $y^{(1)}, \dots, y^{(n)}$
+    resembling the input.}
+  \label{fig:autoencoder-architecture}
+\end{figure}
+
+Our autoencoder follows the architecture proposed in \cite{gru}, alongside GRU,
+for neural machine translation. See Figure \ref{fig:autoencoder-architecture}
+for a sketch. The idea is that the network is split into an encoder and a
+decoder which share information only along a single edge in the computational
+graph. This edge initializes the decoder's hidden state with the final hidden
+state of the encoder. It is the figurative funnel in the network because it has
+to encode the complete input sequence. For that reason we call these encodings
+the \emph{gist} of the input.
+
+The specifics of the architecture are influenced by our requirements. We want to
+use the encoder part to transform variable length event sequences of fixed
+duration into fixed-length vectors. So the network architecture needs to
+accomodate inputs of variable length and accordingly also be variable regarding
+the output length. The preprocessed events are vectors in $\mathbb{R}^{5} \times
+\{ -1, 1 \}$, so the features are partly continuous. It is common practice to
+train an autoencoder to produce a probability distribution over sequences
+instead of sequences directly. The original architecture is designed to work
+over a finite alphabet and produces parameters for a multinoulli distribution
+over that alphabet. So each $y^{(i)}$ is a non-negative vector whose entries sum
+up to 1 and its $j$-th entry encodes the networks belief that the $j$-th word
+should be placed at this point in the output sequence.
+
+The continuity of the features requires a distribution over the real numbers.
 \citeauthor{handwriting} uses an LSTM-RNN to generate handwriting where each
-sequence element is a vector in $\mathbb{R}^{2} \times \{ 0, 1 \}$, so also
-partly continuous \cite{handwriting}. From his work we take away to key
-insights. First, the decoder should generate probability distributions over
-outputs instead of outputs directly and, second, a way to ensure sufficient
-flexibility in the output is to generate the parameters of mixture
-distributions. \citeauthor(handwriting) calls such networks \emph{mixture
-  density networks}. The training then minimizes the negative log-likelihood of
-the inputs.
+sequence element is a vector in $\mathbb{R}^{2} \times \{ 0, 1 \}$ encoding the
+pen's $x$ and $y$ coordinates and whether it is currently lifted from the
+blackboard \cite{handwriting}. Their network's output parameterizes a
+distribution that is a mixture of Gaussians over the real attribute and a
+Bernoulli distribution over the categorical attribute. They call such networks
+\emph{mixture density networks}.
 
-Since the preprocessed events are vectors in $\mathbb{R}^{5} \times \{ -1, 1 \}$
-we decode the sequence into $10$-component mixtures of $5$-dimensional Gaussian
-distributions with diagonal covariance matrices and a Bernoulli distribution
-over the polarity.
+Our network handles an input sequence of length $n$, where $n$ is variable, by
+encoding the complete sequence first. The it applies the decoder to produce a
+distribution over a sequence of length $n$ and computing a loss between the two
+sequences for training. We chose to produce an output sequence of the correct
+length directly instead of learning a special \texttt{end-sequence} output
+because our inputs are just arbitrary slices of events as opposed to sentences
+in machine translation that have a meaningful end.
 
-% TODO: Draw architecture, describe it in detail
+The architecture for our mixture density autoencoder is as follows. Both the
+encoder and decoder are 3 layers of GRUs each of which has 256 units. Encoder
+and decoder structure are necessarily symmetrical since the decoder is fed the
+hidden state from the encoder. The encoder receives preprocessed events in
+$\mathbb{R}^{6}$. Remember that the polarity has been standardized as well, so
+it is not necessarily restricted to $\{ -1, 1 \}$ anymore. However, for purposes
+of computing the loss, we rediscretize it again by mapping positive values to
+$1$ and vice versa. The decoder produces parameters for a 10 component mixture
+distribution of Gaussians with diagonal covariance matrices over
+$\mathbb{R}^{5}$ and a single parameter for a Bernoulli distribution over $\{
+-1, 1 \}$. This adds up to 10 component weights, $10 \cdot 5 = 50$ mean
+parameters, $10 \cdot 5 = 50$ diagonal convariance matrix entries and a single
+Bernoulli parameter, so 111 parameters in total. To project its 256-dimensional
+output into the $\mathbb{R}^{111}$, the decoder has a single fully-connected
+layer with weight matrix and bias term but without non-linearity on top.
 
-% TODO: Denoisign effect?
+The loss is the negative log-likelihood of the input sequence according to the
+output distribution. To compute this, the outputs, which are arbitrary vectors in
+$\mathbb{R}^{111}$, need to satisfy certain conditions. Therefore, except for the
+Gaussian mean vectors $\mu$, all of them are transformed non-linearly. The
+component weights $w_{i}$ are transformed with a softmax operation
+\begin{equation*}
+  w_{i} := \frac{\exp(w_{i})}{\sum_{j} \exp(w_{j})}
+\end{equation*}
+that ensures that the weights are between $0$ and $1$ and sum up to $1$. The
+variance terms $\sigma_{ij}$ have to be positive so that the covariance matrix
+is positive-definite. This is achieved with the softmax operation
+\begin{equation*}
+  \sigma_{ij} := \log\left( 1 + \exp(\sigma_{ij}) \right)
+\end{equation*}
+which ensures that a value is positive and is basically $\max\{ 0, \sigma_{ij}
+\}$ with a rounded corner at $0$ which also never quite gets to $0$ as
+$\sigma_{ij} \rightarrow -\infty$. Finally, the Bernoulli parameter $p$ is
+squashed into the $(0, 1)$ range by the logistic sigmoid function
+\begin{equation*}
+  p := \sigma(p) = \frac{1}{1 + e^{-p}}.
+\end{equation*}
+
+The training setup is the same as for all networks trained for this thesis. We
+use minibatch gradient descent with batches of size 32. The optimizer is Adam,
+an optimization method that adaptively scales the learning rate for each
+parameter \cite{adam}. Though it might be unnecessary with Adam, we still
+employed exponential learning rate decay with $0.95$ to the power of the current
+epoch. Lastly, we clip the gradients at a norm of $5$ which Graves recommends.
+This also helps with numerical instabilities in case the covariances of the
+mixture distribution should become really small.
+
+Training recurrent neural networks on long sequences requires lots of memory
+because all intermediate results over all timesteps need to be stored for
+back-propagation. To avoid running out of memory, we split input sequences above
+a maximum length into chunks. A chunk is similar to a batch, though the hidden
+states are not cleared in between and they are trained on in order. So a batch
+of sequences of length 100 might be split into five chunks where the first chunk
+would contain the first twenty elements of all sequences and so forth. In
+theory, this restricts the maximum distance in time over which the network can
+learn relationships to the chunk size. In practice, we did not notice anything
+that we would have traced back to this effect.
+
+The autoencoder was trained on chunks of length 250, while all other networks
+were trained with chunks of length 1000. The reasons for that are twofold.
+First, the autoencoder is actually two recurrent networks in sequence, so a
+chunk size of 250 means the memory requirements of a chunk size of 500. Second,
+the autoencoder includes more expensive operations and was trained on a lot of
+data. Because of this, training an autoencoder takes several days, while the
+other networks can be trained in a matter of hours. Furthermore, the input data
+of the autoencoder is special. In contrast to all classifier networks, the
+autoencoder runs on variable length sequences. A batch of
+\SI{2.5}{\milli\second} time windows of events has a long-tail distribution of
+lengths. While most sequences will be quite short, one or two will be
+significantly longer. The library we use requires us to effectively zero-pad all
+sequences to the same length, which incurs large and unnecessary memory and
+computational costs. Chunking allows us to cut down on these by excluding
+sequences that have already ended in later chunk iterations.
 
 \begin{figure}[h]
   \centering
@@ -339,34 +473,76 @@ over the polarity.
   \label{fig:autoencoder}
 \end{figure}
 
+A last detail about the autoencoder structure is that the decoder is fed the
+desired output of the previous timestep as input for the current timestep. Using
+the terminology of Figure \ref{fig:autoencoder-architecture}, $d^{(2)}$ would be
+fed $x^{(1)}$ as input. This is supposed to improve decoding performance because
+the network can more easily keep track of its current position in the sequence. 
+
+An interesting question is if the autoencoder has a denoising effect on the
+representation. The noise is more or less uniformly distributed over the field
+of view. Thus, the expected value of the loss incurred by noise should be $0$ in
+expectation and the effect through gradient descent on the network should cancel
+out in the long run. Therefore one might assume that the learned representation
+is less noisy than its input.
+
 % TODO: Maybe explain t-SNE
 
-Figure \ref{fig:autoencoder} shows two t-SNE plots of representations that we
-learned with an autoencoder. Each point represents \SI{2.5}{\milli\second} of
-events and they are colored by the number of events that went in them where a
-brighter color denotes more events. Note that the axes carry no meaning in a
-t-SNE plot and all information is in the distance between points. The key
-observation is that the points form some high-dimensional structure that
-encodes, among others, the event density in a segment.
+Figure \ref{fig:autoencoder} shows two t-SNE plots of learned representations.
+Each point represents \SI{2.5}{\milli\second} of events and they are colored by
+the number of events that went in them where a brighter color denotes more
+events. Note that the axes carry no meaning in a t-SNE plot and all information
+is in the distance between points. The key observation is that the points form
+some high-dimensional structure that encodes, among others, the event density in
+a segment.
 
 \section{Framewise Classification}
 \label{sec:framewise}
 
-A framewise classification network produces for each sequence element a
-multinomial distribution over the classes that encode the network's belief that
-an element belongs to a certain class.
+Methods with an explicit decoding step require localized classifications that
+can be decoded into global classifications. In accord with Graves, we call this
+\emph{framewise classifications}. Once again we use an RNN for that. This time
+we are back in the domain of finite alphabets since the network should assign
+each frame to one of 17 classes, 16 gestures plus the \texttt{<blank>} label.
 
-% TODO: Architecture with softmax + cross entropy
+To make our approaches comparable, we will use the same network architecture
+throughout the rest of the thesis. It consists of three GRU layers with 256
+units each, two fully-connected layers with $\tanh$ activations and also 256
+units each and finally a fully-connected layer without activation function that
+projects the output down into $\mathbb{R}^{17}$. The output is transformed with
+softmax to parameterize a multinoulli distribution over the output classes which
+encodes the networks belief that the current frame belongs to a certain class.
+
+The loss function to optimize is the cross entropy between the outputs and the
+labels. The cross entropy $H$ between two probability distributions $p$ and $q$
+is defined as
+\begin{equation*}
+  H(p, q) = \mathrm{E}_{p} \left[ -\log q \right].
+\end{equation*}
+It measures the difference between the distributions and is minimized with
+respect to $q$ when $q = p$. In our case both are categorical distributions over
+17 categories, where the label can be interpreted as a distribution that is $1$
+for the correct label and $0$ for every other label. This simplifies the cross
+entropy to $H(p, q) = -\log(q(l))$ where $l$ is the frame's label. When this is
+minimized, the predicted probability of the correct label is maximized and the
+probability mass on incorrect labels is necessarily reduced at the same time due
+to the softmax operation.
 
 \begin{figure}[h]
   \centering
   \includegraphics{figures/methods/framewise}
-  \caption{Class probabilities attained from framewise classification}
+  \caption{Class probabilities attained from a framewise classifier. The shaded
+    regions in the background designate the ground-truth.}
   \label{fig:framewise-p}
 \end{figure}
 
-The \texttt{<blank>} class made up about 50\% of the training data and therefore
-is the easiest to learn. This is illustrated in Figure \ref{fig:framewise-p}.
+Figure \ref{fig:framewise-p} illustrates the output of a framewise classifier.
+Since the the \texttt{<blank>} class makes up about 50\% of the training data,
+the classifier recognizes non-gesture data with high accuracy. When an activity
+is detected, the classifier assigns high probabilities to multiple classes at
+first until it discerns a single label as the correct one. This initial
+confusion could most likely be alleviated with a backward pass in a
+bidirectional RNN.
 
 \section{Hidden Markov Model Decoding}
 \label{sec:hmm}
@@ -378,6 +554,8 @@ for another few and finally as \texttt{swipe-down} for the rest of the gesture.
 This sequence of probability distributions now needs to be deciphered into just
 a single \texttt{swipe-down} label. The classical approach to this is hidden
 Markov model decoding.
+
+% TODO: Markov property, Markov models, viterbi algorithm
 
 % TODO: graphical HMM model with states and emissions
 
@@ -399,6 +577,14 @@ Markov model decoding.
   \caption{}
   \label{fig:}
 \end{figure}
+
+\section{Hidden Markov Model Segmentation}
+\label{sec:hmm-segmentation}
+
+% TODO: General explanation
+
+% TODO: How this (MAP?) is decoding without transitions and equal initial
+% probabilities
 
 \section{Connectionist Temporal Classification}
 \label{sec:ctc}
