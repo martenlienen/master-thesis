@@ -10,6 +10,7 @@ import matplotlib.pyplot as pp
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("-d", "--decoded", action="store_true", help="Plot decodings instead of probabilities")
     parser.add_argument("-s", "--start", type=float, help="Start timestamp")
     parser.add_argument("-e", "--end", type=float, help="end timestamp")
     parser.add_argument("-o", "--out", help="Optional output path")
@@ -17,6 +18,7 @@ def main():
     parser.add_argument("dataset", help="HDF5 file with labeled classifications")
     args = parser.parse_args()
 
+    is_decoded = args.decoded
     start_time = args.start
     end_time = args.end
     out_path = args.out
@@ -58,8 +60,12 @@ def main():
         logits = logits[fltr]
         labels = labels[fltr]
 
-    p = np.exp(logits)
-    p /= np.sum(p, axis=1)[:, np.newaxis]
+    if is_decoded:
+        p = logits
+    else:
+        # Softmax
+        p = np.exp(logits - logits.max(axis=1, keepdims=True))
+        p /= np.sum(p, axis=1)[:, np.newaxis]
 
     norm = mpl.colors.Normalize(0, len(label_index) - 1)
     sm = mpl.cm.ScalarMappable(norm, "tab20c")
@@ -73,6 +79,9 @@ def main():
     # Plot class probabilities
     for i in range(len(label_index)):
         ax.plot(timestamps, p[:, i], lw=1, c=sm.to_rgba(i))
+
+        if is_decoded:
+            ax.fill_between(timestamps, 0, p[:, i], hatch="/", edgecolor=sm.to_rgba(i), facecolor="none")
 
     ax.set_xlabel("Time in seconds")
     ax.set_ylabel("Class probability")
