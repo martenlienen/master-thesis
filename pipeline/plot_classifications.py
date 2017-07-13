@@ -4,25 +4,34 @@ import argparse
 
 import h5py as h5
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as pp
 
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("-s", "--start", type=float, help="Start timestamp")
+    parser.add_argument("-e", "--end", type=float, help="end timestamp")
+    parser.add_argument("-o", "--out", help="Optional output path")
     parser.add_argument("name", help="Name of a recording")
     parser.add_argument("dataset", help="HDF5 file with labeled classifications")
     args = parser.parse_args()
 
+    start_time = args.start
+    end_time = args.end
+    out_path = args.out
     recording_name = args.name
     dataset_path = args.dataset
 
     with h5.File(dataset_path, "r") as f:
         label_index = list(f["label_index"])
+        timestamps = []
         logits = []
         labels = []
 
         def collect_logits(name, obj):
             if isinstance(obj, h5.Group) and name.endswith(recording_name):
+                timestamps.append(np.array(obj["timestamps"]))
                 logits.append(np.array(obj["data"]))
                 labels.append(np.array(obj["labels"]))
 
@@ -30,27 +39,50 @@ def main():
 
         f.visititems(collect_logits)
 
+    timestamps = timestamps[0]
     logits = logits[0]
     labels = labels[0]
+
+    # Convert timestamps to seconds
+    timestamps = timestamps / 10**6
+
+    if start_time is not None:
+        fltr = timestamps >= start_time
+        timestamps = timestamps[fltr]
+        logits = logits[fltr]
+        labels = labels[fltr]
+
+    if end_time is not None:
+        fltr = timestamps <= end_time
+        timestamps = timestamps[fltr]
+        logits = logits[fltr]
+        labels = labels[fltr]
 
     p = np.exp(logits)
     p /= np.sum(p, axis=1)[:, np.newaxis]
 
-    fig, axes = pp.subplots(2, 1, sharex=True)
+    norm = mpl.colors.Normalize(0, len(label_index) - 1)
+    sm = mpl.cm.ScalarMappable(norm, "tab20c")
 
-    labels[labels == -1] = len(label_index)
+    fig, ax = pp.subplots(1, 1, figsize=(6, 1.5), dpi=200)
 
-    time = np.arange(len(labels))
+    # Plot true labels
     for i in range(len(label_index)):
-        line = np.zeros(len(labels))
-        line[labels == i] = 1.0
+        ax.fill_between(timestamps, -0.025, 1.025, where=(labels == i), color=sm.to_rgba(i), alpha=0.5, lw=0)
 
-        axes[0].plot(time, line)
-
+    # Plot class probabilities
     for i in range(len(label_index)):
-        axes[1].plot(time, p[:, i])
+        ax.plot(timestamps, p[:, i], lw=1, c=sm.to_rgba(i))
 
-    pp.show()
+    ax.set_xlabel("Time in seconds")
+    ax.set_ylabel("Class probability")
+    ax.set_yticks([0, 0.5, 1.0])
+    ax.set_ylim((-0.025, 1.025))
+
+    if out_path is not None:
+        fig.savefig(out_path, bbox_inches="tight")
+    else:
+        pp.show()
 
 
 if __name__ == "__main__":
