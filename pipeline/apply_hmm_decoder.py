@@ -12,7 +12,7 @@ import scipy.io as sio
 def viterbi(logits, pi, log_A, softmax=True):
     if softmax:
         # Softmax to convert logits to probabilities
-        p = np.exp(logits)
+        p = np.exp(logits - logits.max(axis=1, keepdims=True))
         p /= np.sum(p, axis=1)[:, np.newaxis]
     else:
         p = logits

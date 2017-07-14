@@ -7,6 +7,21 @@ import numpy as np
 import scipy.io as sio
 
 
+def stationary_distribution(A):
+    # Just compute it iteratively
+    pi = np.ones(A.shape[0])
+    pi /= pi.sum()
+
+    pi_prime = A.dot(pi)
+    pi_prime /= pi_prime.sum()
+    while np.linalg.norm(pi - pi_prime) > 10**-9:
+        pi = pi_prime
+        pi_prime = A.dot(pi)
+        pi_prime /= pi_prime.sum()
+
+    return pi
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("dataset")
@@ -34,15 +49,16 @@ def main():
     blank_filter = labels == -1
     nonblank_filter = ~blank_filter
 
-    ninstances = int(np.count_nonzero(np.logical_xor(blank_filter[:-1], blank_filter[1:])) / 2)
+    ninstances = int(np.count_nonzero(np.logical_xor(blank_filter, np.roll(blank_filter, 1))) / 2)
 
-    pi = np.full(2, 1/2, np.float32)
     A = np.zeros((2, 2), np.float32)
 
     A[0, 1] = ninstances / np.count_nonzero(nonblank_filter)
     A[0, 0] = 1 - A[0, 1]
     A[1, 0] = ninstances / np.count_nonzero(blank_filter)
     A[1, 1] = 1 - A[1, 0]
+
+    pi = stationary_distribution(A)
 
     sio.savemat(out_path, {"pi": pi, "A": A})
 

@@ -7,6 +7,21 @@ import numpy as np
 import scipy.io as sio
 
 
+def stationary_distribution(A):
+    # Just compute it iteratively
+    pi = np.ones(A.shape[0])
+    pi /= pi.sum()
+
+    pi_prime = A.dot(pi)
+    pi_prime /= pi_prime.sum()
+    while np.linalg.norm(pi - pi_prime) > 10**-9:
+        pi = pi_prime
+        pi_prime = A.dot(pi)
+        pi_prime /= pi_prime.sum()
+
+    return pi
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("dataset")
@@ -31,23 +46,23 @@ def main():
 
     labels = np.concatenate(labels, axis=0)
 
-    labels[labels == -1] = len(label_index)
-
     nclasses = len(label_index) + 1
-    pi = np.ones(nclasses, np.float32) / nclasses
     A = np.zeros((nclasses, nclasses), np.float32)
 
-    for i in range(nclasses - 1):
+    blank_filter = labels == -1
+    nblanks = np.count_nonzero(blank_filter)
+
+    for i in range(label_index):
         fltr = labels == i
+        ninstances = int(np.count_nonzero(np.logical_xor(fltr, np.roll(fltr, 1))) / 2)
 
-        A[i, -1] = 1 / (np.count_nonzero(fltr) / ndata)
+        A[i, -1] = ninstances / np.count_nonzero(fltr)
         A[i, i] = 1 - A[i, -1]
+        A[-1, i] = ninstances / nblanks
 
-    A[-1, -1] = 0.999
-    A[-1, :-1] = (1 - A[-1, -1]) / (nclasses - 1)
-    # values, counts = np.unique(labels, return_counts=True)
-    # for v, c in zip(values, counts):
-    #     A[-1, v] = c / len(labels)
+    A[-1, -1] = 1 - np.sum(A[-1, :-1])
+
+    pi = stationary_distribution(A)
 
     sio.savemat(out_path, {"pi": pi, "A": A})
 
