@@ -550,41 +550,128 @@ bidirectional RNN.
 A framewise classifier tells us which gesture most likely happened at each point
 in time but a \texttt{swipe-down} gesture might be classified as
 \texttt{rotate-outward} for the first few milliseconds, then \texttt{swipe-up}
-for another few and finally as \texttt{swipe-down} for the rest of the gesture.
+for another few and finally as \texttt{swipe-down} for the rest of the activity.
 This sequence of probability distributions now needs to be deciphered into just
-a single \texttt{swipe-down} label. The classical approach to this is hidden
-Markov model decoding.
-
-% TODO: Markov property, Markov models, viterbi algorithm
+a single \texttt{swipe-down} label. One way of doing just this is with hidden
+Markov models (HMMs).
 
 % TODO: graphical HMM model with states and emissions
 
-\begin{figure}[h]
+% TODO: Markov property, Markov models, viterbi algorithm
+A hidden Markov model consists of a Markov chain of hidden states $z^{(t)} \in
+\{ 1, \dots, K \}$ and an observation model $x^{(t)}$. A Markov chain is a
+probability distribution over sequences of arbitrary length where the transition
+probability between states only depends on the current state, so
+\begin{equation*}
+  p\left( z^{(t)} | z^{(1)}, \dots, z^{(t - 1)} \right) = p\left( z^{(t)} | z^{(t - 1)} \right).
+\end{equation*}
+The transition model is usually written as a transition matrix $A$ where
+$A_{ij}$ is the probability of transitioning from state $i$ into state $j$. The
+initial probabilities for $z^{(1)}$ are given by a vector $\pi \in
+\mathbb{R}^{K}$. The observation model specifies $p(x^{(t)} | z^{(t)})$ where
+the observation probabilities only depend on the current state. In our case, the
+observation model is categorical as well and specified by an observation matrix
+$B$ where $B_{ij}$ gives the probability of observation $j$ in state $i$. 
+
+A hidden Markov model models a situation where a state of interest is only
+indirectly observable through emissions at each timestep. We have a sequence of
+local classifications of each frame into of 17 classes and would like to derive
+the true underlying sequence of gestures. An HMM lets us incorporate the
+knowledge that a state $i$ might be observed as any other state for a short
+while through the observation matrix $B$.
+
+An efficient algorithm to decode an observation sequence into the most likely
+underlying state sequence is \emph{Viterbi decoding}. It produces the most
+likely sequence of hidden states
+\begin{align*}
+  z^{(1)}, \dots, z^{(n)} & = \argmax_{z^{(1)}, \dots, z^{(n)}} p(z^{(1)}, \dots, z^{(n)} | x^{(1)}, \dots, x^{(n)})\\
+                          & = \argmax_{z^{(1)}, \dots, z^{(n)}} p(z^{(1)}) \cdot \prod_{t = 2}^{n} p(z^{(t)} | z^{(t - 1)}) \cdot \prod_{t = 1}^{n} p(x^{(t)} | z^{(t)})\\
+                          & = \argmax_{z^{(1)}, \dots, z^{(n)}} \log \pi_{z^{(1)}} + \sum_{t = 2}^{n} \log A_{z^{(t - 1)}, z^{(t)}} + \sum_{t = 1}^{n} \log p(x^{(t)} | z^{(t)})\\
+  \intertext{given a sequence of observations. A problem is that a framewise classifier
+produces $p(z^{(t)} | x^{(t)})$ instead of $p(x^{(t)} | z^{(t)})$. We can
+rewrite the decoding objective with Bayes's theorem.}
+                          & = \argmax_{z^{(1)}, \dots, z^{(n)}} \log \pi_{z^{(1)}} + \sum_{t = 2}^{n} \log A_{z^{(t - 1)}, z^{(t)}} + \sum_{t = 1}^{n} \left( \log p(z^{(t} | x^{(t)}) + \log p(x^{(t)}) - \log p(z^{(t)}) \right)\\
+  \intertext{The $p(x^{(t)})$ term is irrelevant to the arg max because it does not depend on $z$.}
+                          & = \argmax_{z^{(1)}, \dots, z^{(n)}} \log \pi_{z^{(1)}} + \sum_{t = 2}^{n} \log A_{z^{(t - 1)}, z^{(t)}} + \sum_{t = 1}^{n} \left( \log p(z^{(t} | x^{(t)}) - \log p(z^{(t)}) \right)\\
+                          & = \argmax_{z^{(1)}, \dots, z^{(n)}} \log \pi_{z^{(1)}} + \sum_{t = 2}^{n} \log A_{z^{(t - 1)}, z^{(t)}} + \sum_{t = 1}^{n} \log p(z^{(t} | x^{(t)})
+\end{align*}
+The last line is true if $\pi$ is the stationary distribution of the Markov
+chain $A$, i.e. the long term distribution over hidden states, because then
+$p(z^{(1)}) = \pi$ and $p(z^{(t)}) = Ap(z^{(t - 1)}) = \pi$. Therefore $\log
+p(z^{(t)})$ is actually independent of $z^{(t)}$ and can be ignored.
+
+The Viterbi algorithm finds the maximizer by computing the probability of being
+in state $j$ at time $t$ given that you take the most probable path.
+\begin{equation*}
+  \delta_{t}(j) = \max_{z^{(1)}, \dots, z^{(t - 1)}} p(z^{(1)}, \dots, z^{(t - 1)}, z^{(t)} = j | x^{(1)}, \dots, x^{(t)})
+\end{equation*}
+The key insight here is that the most probable path to state $j$ at time $t$
+must be the one that maximizes the joint probability of being in state $k$ at
+time $t - 1$ and transitioning from $k$ to $j$, i.e.
+\begin{equation*}
+  \delta_{t}(j) = \max_{i} \delta_{t - 1}(i) \cdot A_{ij} \cdot B_{j,x^{(t)}}
+\end{equation*}
+If you compute $\delta$ for $t$ from 1 to $n$ and store the maximizer $i$ in
+another table $\alpha_{tj}$, you can find the most probable final state as
+$z^{(n)} = \argmax_{i} \delta_{n}(i)$ and work your way back to $t = 1$ by
+following the $\alpha_{n,z^{(n)}}$ to the predecessor state and so forth.
+This explanation is summarized from \cite{murphy12}.
+
+Since we do not work with the observation matrix $B$, the process of
+constructing an HMM decoder from the training data is reduced to finding $A$ and
+$\pi$. The structure of $A$ allows us to include our domain knowledge in the
+decoding process. We want to encode in $A$ that no two gestures transition
+directly from one to another, there is always a \texttt{<blank>} in between, and
+the probability of staying in the same state is high because a gesture is at
+least a thousand frames long. So we define the $A_{i,17}$ entries, the
+transition probability from gesture $i$ to \texttt{<blank>}, as the proportion
+of frames belonging to class $i$ that transition to \texttt{<blank>} and
+$A_{i,i}$, the self-transition probability, as $1 - A{i,17}$. The transition
+probability from \texttt{<blank>} to any of the gestures is the proportion of
+gesture frames following blank frames and its self-transition probability is the
+complement of that. Finally, we choose $\pi$ as the stationary distribution of
+$A$.
+
+\begin{figure}
   \centering
-  \begin{tikzpicture}[scale=2]
-    \foreach \i in {1, 2, 3, 4}
-    \foreach \j in {1, 2, 3}
-    \node[circle,draw](\i\j) at (\i, \j) {\i \j};
-
-    \foreach \i [evaluate=\i as \inext using int(\i+1)] in {1, 2, 3}
-    \foreach \j in {1, 2, 3}
-    \draw[->] (\i1) -- (\inext\j);
-
-    \foreach \i [evaluate=\i as \x using int(\i+1)] in {1, 2, 3}
-    \foreach \j in {1, 2, 3}
-    \draw[->] (\i\j) -- (\x\j);
-  \end{tikzpicture}
-  \caption{}
-  \label{fig:}
+  \includegraphics{figures/methods/decoded}
+  \caption{A decoding produced by an HMM decoder. The shaded regions in the
+    background denote the ground-truth.}
+  \label{fig:decoded}
 \end{figure}
 
 \section{Hidden Markov Model Segmentation}
 \label{sec:hmm-segmentation}
 
-% TODO: General explanation
+Figure \ref{fig:decoded} shows that an HMM decoder is able to recognize the
+points of activity in a sequence of local classifications and is also reasonably
+accurate in decoding them into the correct class. However, there are a lot of
+spurious labels mixed in with the correct labels. The idea of HMM segmentation
+is to divide the decoding process into two parts. First, an HMM with just two
+states, \texttt{<gesture>} and \texttt{<blank>}, segments the sequence and
+afterwards a second HMM produces a single label for each segment. The result of
+this is depicted in Figure \ref{fig:segmented}.
 
-% TODO: How this (MAP?) is decoding without transitions and equal initial
-% probabilities
+\begin{figure}
+  \centering
+  \includegraphics{figures/methods/segmented}
+  \caption{A decoding produced by an HMM segmenter followed by segment decoding}
+  \label{fig:segmented}
+\end{figure}
+
+The HMM segmenter is constructed in the same way as the decoder in Section
+\ref{sec:hmm} with the twist that all gestures are combined into a single hidden
+state \texttt{<gesture>}. When the HMM segments a recording, the probability of
+the \texttt{<gesture>} state is the sum of all gesture probabilities. To suppress
+the remaining spurious activations, we also filter out all segments that are
+shorther than \SI{500}{\milli\second} because we know from the dataset
+statistics that the shortest gesture is over a second long on average. Therefore
+anything shorther than half of that is most certainly erroneous.
+
+The decoding HMM is particularly simple in that the initial distribution $\pi$
+is the uniform distribution and the transition matrix $A$ is the identity matrix
+thus disallowing any transitions. After viterbi decoding, the segment label is
+$z^{(n)}$.
 
 \section{Connectionist Temporal Classification}
 \label{sec:ctc}
