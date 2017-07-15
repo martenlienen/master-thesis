@@ -139,7 +139,6 @@ $h^{(t)}$, and three gates, the input, output and forget gates $i^{(t)}$,
 $o^{(t)}$ and $f^{(t)}$, respectively, which control the flow of information.
 They are connected as follows where $\sigma$ is the logistic sigmoid function
 and $\circ$ denotes an element-wise product.
-% TODO: Explain the logistic sigmoid?
 \begin{align*}
   f^{(t)} & = \sigma\left( W_{f}x^{(t)} + U_{f}h^{(t - 1)} + b_{f} \right)\\
   i^{(t)} & = \sigma\left( W_{i}x^{(t)} + U_{i}h^{(t - 1)} + b_{i} \right)\\
@@ -676,6 +675,65 @@ $z^{(n)}$.
 \section{Connectionist Temporal Classification}
 \label{sec:ctc}
 
+\citeauthor{ctc} solve the problems of classification and decoding with a
+combined method called connectionist temporal classification (CTC) that trains
+RNNs for sequence labeling directly \cite{ctc}. CTC defines the network output
+as a probability distribution over label sequences and is trained by minizing
+the negative log-likelihood of the true label sequences over a training set. The
+exponential number of possible alignments between a label sequence and an
+observation sequence is kept in check by an evaluation strategy that is inspired
+by the forward-backward algorithm for HMMs.
+
+Let $x \in (\mathbb{R}^{m})$ be an input sequence of length $T$ and $y \in
+(\mathbb{R}^{n})$ the sequence of outputs produced by a network that classifies
+each frame into one of $n - 1$ classes or blank. Let $L^{T}$ be the set
+sequences of length $T$ over the alphabet $\{ 1, \dots, n \}$. Then a sequence
+$\pi \in L^{T}$ of labels of the same length as $x$ has the probability
+\begin{equation*}
+  p(\pi | x) = \prod{t = 1}^{T} y^{(t)}_{\pi^{(t)}}
+\end{equation*}
+conditioned on the observation $x$. Graves et al. call $\pi$ a path. Define
+$\mathcal{B} : L^{T} \mapsto L^{\le T}$ as the function that maps a path to a
+sequence with all blanks and repeated labels removed from the path, for example
+$\mathcal{B}(aa--ab-) = aab$. Then the probability of any label sequence $l$ of
+length at most $T$ can be computed by
+\begin{equation*}
+  p(l | x) = \sum_{\pi \in \mathcal{B}^{-1}(l)} p(\pi | x).
+\end{equation*}
+Training by maximizing the log-likelihood with this formula naively would
+require you to sum over all paths corresponding to a label and ``in general
+there are very many of these'' (Graves). However, the combinatorial explosion
+can be avoided by dynamic programming similar to the forward-backward algorithm
+for HMMs. For a labelling $l$ define the total probability of its first $s$
+labels $l_{1:s}$ at time $t$ as
+\begin{equation*}
+  \alpha_{t}(s) = \sum_{\substack{\pi \in L^{T}\\\mathcal{B}(\pi_{1:t}) = l_{1:s}}} \prod_{t' = 1}^{t} y^{t'}_{\pi_{t'}}
+\end{equation*}
+where $\alpha$ is called the \emph{forward variable}. Define a \emph{backward
+  variable} $\beta$ for suffix probabilities in an analogous way. The important
+insight is that $\alpha_{t}(s)$ can be computed recursively from $\alpha_{t -
+  1}(s)$ and $\alpha_{t - 1}(s - 1)$ and similarly for $\beta$. Then for any $t$
+the probability of a labelling $l$ can be rewritten as
+\begin{equation*}
+  p(l | x) = \sum_{s = 1}^{|l|} \frac{\alpha_{t}(s) \beta_{t}(s)}{y^{t}_{l_{s}}}.
+\end{equation*}
+From this formula the gradients with respect to the network outputs can be
+derived.
+
+Graves et al. give several methods for decoding the output of a CTC-trained
+network where decoding means finding the labelling $l \in L^{\le T}$ that
+maximizes $p(l | x)$. The problem is deemed intractable, though they give
+several approximation methods. The first is called \emph{best path decoding} and
+chooses $l = \mathcal{B}\left( \argmax_{\pi} p(\pi | x) \right)$. This
+corresponds to setting $\pi_{t}$ to the class with maximum probability at each
+timestep. A quick glance at Figure \ref{fig:ctc-p} reveals that this would lead
+to many spurious labels on our dataset. Another method is called
+\emph{prefix-search decoding}, which iteratively expands a prefix tree to find
+the most probable labelling. However, its worst-case runtime is exponential in
+the length of the input. Because of the length of our inputs, we decided to use
+the decoding methods given in Sections \ref{sec:hmm} and
+\ref{sec:hmm-segmentation} on the CTC output.
+
 \begin{figure}[h]
   \centering
   \includegraphics{figures/methods/ctc}
@@ -683,16 +741,22 @@ $z^{(n)}$.
   \label{fig:ctc-p}
 \end{figure}
 
-In the combined approach with neural network and HMM, we train two different
-systems in series and the NN.
+Figure \ref{fig:ctc-p} plots the output of a CTC-trained network over time on
+the same input as Figure \ref{fig:framewise-p} that shows results from a
+framewise classifier. The output is similar yet different even though both
+networks share the architecture and were trained on the same data. The framewise
+classifier easily classifies the first and third gesture but misclassifies the
+second one. The CTC labeling network classifies the last gesture correctly and
+gets both the first and second one partially correct.
 
-Training with categorical cross entropy tries to categorize short windows of events correctly.
-However, this is not actually what we want and may also be impossible to do.
-For example, the gestures extend-index-finger and tap-index-finger start the exact same way, so the first few events are not distinguishable.
-With CTC we might be able to get the network to stay quiet until it is sure, which type of gesture it is, instead of forcing it to predict one of them at inappropriate times.
-
-% TODO: Training problems because of long sequences and the need to store all
-% intermediate results for BPTT. Sequences without any labels cannot be handled.
-
-% TODO: Chunk size is 250 but RNNs can still learn longer sequences empirically,
-% see Graves handwriting paper.
+In the CTC paper the authors showcase an emergent property of CTC training which
+is that the network would predict the correct class only in short spikes, just
+long enough to be decoded into the correct label sequence, instead of
+classifying long streaks of frames as a single class as we observe it in Figure
+\ref{fig:ctc-p}. This most likely due to an adaptation we had to make because of
+the very low label to sequence length ratio of our dataset. The average
+recording is two million events or 24,000 gists long, yet it has only 16 labels.
+This led to numerical problems during the evaluation of the gradients which we
+overcame by repeating each label as often as there were events or gists with
+that label. As a side effect, the output of the network became more akin to that
+of a framewise classifier.
