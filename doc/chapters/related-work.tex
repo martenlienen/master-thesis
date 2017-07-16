@@ -8,9 +8,9 @@ classical rock-paper-scissors game. In a first step they accumulate events into
 grayscale images in a similar fashion as demonstrated in Figure
 \ref{fig:intro:objects}. Then they compute hand-designed features over these
 images, for example hand boundaries and the visible area of the palm, as was
-common at the time in classical computer vision with features like the history
-of gradients. Note, that their work was published in \citeyear{manualfeatures}
-and thus predates the deep learning era.
+common at the time in computer vision with features like the history of
+gradients. Note, that their work was published in \citeyear{manualfeatures} and
+thus predates the deep learning era.
 
 The DVS' inventors in Zurich and Samsung's R\&D lab in Suwon collaborated over
 several years on a project to implement gesture recognition with spiking neural
@@ -26,9 +26,9 @@ denoising effect. With this setup the group achieved a recognition rate of over
 In \citeyear{spatiotemporal} another group at Samsung applied deep learning to
 the problem \cite{spatiotemporal}. First, they super-resolve the event stream
 with spatiotemporal demosaicing which improved their system's performance on
-gestures performed in a distance of more than 4 meters from the DVS. Next, they
-extend the naive frame reconstruction technique with temporal information by
-stacking three successive grayscale images into the color channels of an RGB
-image. Finally, they train a GoogLeNet CNN to classify their temporal-fusion
-frames and decode the network output with an LSTM. They achieved a recognition
-rate of over 90\% with 6 gestures and 5 distances.
+gestures performed more than 4 meters away from the DVS. Next, they extend the
+naive frame reconstruction technique with temporal information by stacking three
+successive grayscale images into the color channels of an RGB image. Finally,
+they train a GoogLeNet CNN to classify these temporal-fusion frames and decode
+the network output with an LSTM. They achieved a recognition rate of over 90\%
+with 6 gestures and 5 distances.

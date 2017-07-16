@@ -5,49 +5,49 @@
 In this thesis, we have created a labeled neuromorphic dataset of hand gestures
 with more than 600 examples of 16 classes. We have compared various
 preprocessing measures, RNN classifiers and decoders. We were able to achieve a
-label error rate of 0.14 on a validation set with an autoencoder for sequence
-compression, a recurrent neural network for framewise classification, an HMM
-segmenter followed by an HMM decoder. We have also tried end-to-end training
-with CTC and visual feature extraction with an image reconstruction method and a
-pre-trained CNN, though these methods produced worse results, respectively did
+label error rate of 0.125 on a validation set with an autoencoder for sequence
+compression, a recurrent neural network for framewise classification and an HMM
+segmenter followed by HMM decoding. We have also tried end-to-end training with
+CTC and visual feature extraction with an image reconstruction method and a
+pre-trained CNN, though these methods produced worse results respectively did
 not work at all.
 
 It would be interesting to investigate the denoising effect of the autoencoder.
-One could use the autoencoder to reconstruct the input sequence and empirically
+One could use an autoencoder to reconstruct the input sequence and empirically
 assess the noise level compared to the original data by replaying it in the
 segmentation program. Another question is if the autoencoder can hallucinate
 data in the same way that people use recurrent neural networks to generate texts
 that read like Shakespeare.
 
-There are several ways in which one could further improve the recognition
-performance of this system. One idea is would be to increase the information
-content of the learned representations further. At the moment, we reset the
-autoencoders state to zero between each time window. The effect, as seen in the
-t-SNE plots of the representations, is that time windows with very few events
-have so little information that they are not distinguishable. One might be able
-to improve this by applying the autoencoder in a rolling fashion by not
-resetting the hidden states between time windows. This could help in classifying
-stretches of time in gestures of low activity, e.g. the turning point of a
-swiping gesture.
+There are several ways in which the recognition performance of this system could
+be further improved. One idea would be to increase the information content of
+the learned representations at times of low event density. At the moment, we
+reset the autoencoder's state to zero between each time window. The effect, as
+seen in the t-SNE plots of the representations, is that time windows with very
+few events have so little information that they are not distinguishable. One
+might be able to improve this by applying the autoencoder in a rolling fashion
+by not resetting the hidden states between time windows. This could help in
+classifying stretches of time in gestures of low activity, e.g. the turning
+point of a swiping gesture.
 
 Another idea would be to use a bidirectional neural network so that the
-fully-connected layers can take past as well as future context into account and
-avoid this phase of confusion at the beginning of a gesture that we have seen in
-the Figure \ref{fig:framewise-p}.
+subsequent fully-connected layers can take past as well as future context into
+account and avoid the phase of confusion at the beginning of a gesture that we
+have seen in the Figure \ref{fig:framewise-p}.
 
 The decoding process might be improved by turning to higher-order Markov models
 that can incorporate requirements like a minimum length of a hidden state
 directly into the model instead of having to post-process the decodings and
 segmentations.
 
-Of course, recording more training data would surely help. When we transitioned
-from the 25-gesture dataset to the 16-gesture dataset with double the amount of
-data, we saw a serious improvement in performance and we would expect the same
-from more data. Having more subjects would also improve the generalizability of
-the system and eventually one could reserve a whole subject's recordings for a
-test set.
+Of course, recording more training data would surely help. When we went from the
+25-gesture dataset to the 16-gesture dataset with double the amount of data, we
+saw a significant improvement in performance and we would expect the same from
+more data. Having more subjects would also improve the generalizability of the
+system and eventually one could reserve the complete set of recordings fro a
+single subject as a test set.
 
-Finally, the system could be extended to live recognition. In theory, all the
+Finally, the system could be extended to online recognition. In theory, all the
 components can be run in a streaming context, except for a possible
-bi-directional extension of the classifier. However, even these can be run live
-by introducing a small delay.
+bi-directional extension to the classifier. However, even these can be run
+quasi-online by introducing a small delay.

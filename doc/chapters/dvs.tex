@@ -2,7 +2,7 @@
 \chapter{Dynamic Vision Sensor}
 \label{cha:dvs}
 
-In \citeyear{dvs} \citeauthor{dvs} proposed the design for an asynchronous
+In \citeyear{dvs} \citeauthor{dvs} proposed the design for the asynchronous
 temporal contrast vision sensor, a neuromorphic, frame-free image sensor. Later
 a spin-off company called inilabs built this design into the dynamic vision
 sensor (DVS) which they distribute to labs around the world as part of their
@@ -16,14 +16,14 @@ this property that makes the sensor comparable to ganglion cells in the human
 retina insofar as the pixels act asynchronously and react to illuminance changes
 over time. As a consequence, under constant lighting conditions, the sensor
 captures most of its signal at the edges of objects because smooth surfaces such
-as human skin have almost constant i most of its signal at when moving in front
-of the DVS. So, opposed to conventional cameras that transmit the whole picture
-with each frame, the DVS filters out redundant information from still standing
-objects which thus incur neither transmission nor computational costs. Therefore
-the DVS lends itself particularly well to applications that run on battery or
-have to rely on low-power microcontrollers such as aerial drones. Another
-proposed application are surveillance scenarios, for example traffic monitoring
-or security cameras, that primarily detect movement and track objects in video
+as human skin have almost constant illumination when moving in front of the DVS.
+So, opposed to conventional cameras that transmit the whole picture with each
+frame, the DVS filters out redundant information from still standing objects
+which thus incur neither transmission nor computational costs. Therefore the DVS
+lends itself particularly well to applications that run on battery or have to
+rely on low-power microcontrollers such as aerial drones. Another proposed
+application are surveillance scenarios, for example traffic monitoring or
+security cameras, that primarily detect movement and track objects in video
 streams and thus could run on cheaper hardware if the vision sensor would filter
 out movement from the beginning. Finally, the DVS does not exhibit motion blur
 because each pixel generates an event as soon as a change in illumination is
@@ -34,8 +34,8 @@ fruit flies and particles in fluid dynamics experiments.
 
 The sensor has a spatial resolution of 128$\times$128 pixels and a temporal
 resolution of \SI{10}{\micro\second}. This means that events are timestamped by
-a free-running counter ticking at \SI{100}{\kilo\hertz}. Due to the DVS being a
-CMOS chip, it just consumes \SI{23}{\milli\watt} of power. Each pixel has a
+a free-running counter ticking up at \SI{100}{\kilo\hertz}. Due to the DVS being
+a CMOS chip, it just consumes \SI{23}{\milli\watt} of power. Each pixel has a
 logarithmic photoreceptor circuit which lets the DVS operate over a dynamic
 range of \SI{120}{\decibel}. Formally, each pixel circuit tracks the temporal
 contrast defined as $c = \nicefrac{\mathrm{d}}{\mathrm{d}t} \log I$, i.e. it is
@@ -47,10 +47,9 @@ event is also called the polarity and is defined as the sign of the temporal
 contrast that triggered it, $p = \mathrm{sign}(c)$. The whole process has a
 latency of \SI{15}{\micro\second} and activates a reset transistor that imposes
 a refractory period on the pixel during which it cannot activate again. This
-serves to ensure fairness between pixels because in its absence a handful of
-pixels could saturate the communication bus that is limited to about
-\SI{200}{keps} (kilo events per second) without timestamping and \SI{60}{keps}
-with.
+ensures fairness between pixels because in its absence a handful of pixels could
+saturate the communication bus that is limited to about \SI{200}{keps} (kilo
+events per second) without timestamping and \SI{60}{keps} with.
 
 \begin{figure}
   \centering
@@ -64,8 +63,8 @@ with.
 
 The DVS streams events over USB in address-event representation (AER). In AER
 each event is a 4-tuple $(t, x, y, p)$ where $t$ is the timestamp, $x$ and $y$
-are the coordinates where the event originated and $p$ is the event's polarity.
-On the wire each tuple is encoded in \SI{4}{bytes} as shown in Figure
+are the coordinates of the event's origin and $p$ is the event's polarity. On
+the wire each tuple is encoded in \SI{4}{bytes} as shown in Figure
 \ref{fig:dvs:bytefield}. The polarity is binary and can be encoded in a single
 bit. The coordinates range from $0$ to $127$, thus they can be encoded in $7$
 bits each since $2^{7} = 128$. Interestingly, $t$ is encoded as a \SI{16}{bit}
