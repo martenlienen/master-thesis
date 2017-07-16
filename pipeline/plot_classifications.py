@@ -70,7 +70,7 @@ def main():
     norm = mpl.colors.Normalize(0, len(label_index) - 1)
     sm = mpl.cm.ScalarMappable(norm, "tab20c")
 
-    fig, ax = pp.subplots(1, 1, figsize=(6, 1.5), dpi=200)
+    fig, ax = pp.subplots(1, 1, figsize=(6, 1.5), dpi=600)
 
     # Plot true labels
     for i in range(len(label_index)):
