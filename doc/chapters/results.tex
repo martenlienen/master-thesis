@@ -119,12 +119,12 @@ dominated by misclassifications.
 \end{figure}
 
 Table \ref{tab:ler} presents the final results across all twelve combinations of
-loss function, input representation and decoding method in the form of mean
+a loss function, input representation and decoding method in the form of mean
 Levenshtein distance and label error rate. The best result was achieved on gists
-with a network trained for framewise classfication and decoding method with an
+with a network trained for framewise classification and decoding method with an
 extra segmentation step. The mean Levenshtein distance is just 2, so of the 16
-gestures shown in each of the recording it gets 14 correct on average, which is
-an LER of 0.125 and an accuracy of 87.5\%. The accuracy interpretation is
+gestures shown in each of the recordings, it gets 14 correct on average, which
+is an LER of 0.125 and an accuracy of 87.5\%. The accuracy interpretation is
 approximately correct in this case because the network gets the number of
 gestures wrong only a single time.
 
@@ -183,8 +183,8 @@ CTC + HMM Decoding & 211.14 & 1.313 & 1.0\\
 
 All other combinations perform significantly worse, though segmentation improves
 the label error rate in every case over simple decoding. To understand why that
-is compare the plots in figure \ref{fig:decoded}. The direct decoding method has
-16 non-blank states that each compete to explain the current frame
+is, compare the plots in figure \ref{fig:decoded}. The direct decoding method
+has 16 non-blank states that compete to explain the current frame
 classification. This produces many spurious labels that are only active for a
 few tenth of a second which in turn drives the Levenshtein distance up with a
 lot of removal operations. The segmentation-HMM combines all gestures into one
@@ -193,8 +193,8 @@ segment which is subsequently assigned a single label. The problem is only
 exacerbated when the pipeline is applied to the event representation. The cause
 for the dramatically degraded performance on events when comparing a decoder to
 the segmentation method is that HMMs model discrete time-series but event
-sequences are continuous. Also our parameter estimation procedure for HMMs does
-not account for the varying event densities between gesture and blank. As a
+sequences are continuous. Also, our parameter estimation procedure for HMMs does
+not account for the variation in event density between gesture and blank. As a
 result, the HMM ``sees'' the gestures very drawn out which makes it easy to take
 the noise in the event classification (see Figure \ref{fig:event-cls}) for a
 true signal, if we anthropomorphize the inner workings of an HMM.

@@ -1,5 +1,5 @@
-# The NeuroIV Benchmark Towards Safe Driving
+# Gesture Recognition with a Neuromorphic Vision Sensor and Deep Learning
 
-This is my master's thesis on neuromorphic cameras in autonomous driving. The
-repository contains code, data as well as source files for the final thesis
-document.
+This repository contains all documents, plots and programs related to my
+master's thesis. The final thesis document can be found
+in [doc/main.pdf](doc/main.pdf).
