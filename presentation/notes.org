@@ -1,0 +1,93 @@
+#+TITLE: Presentation Notes
+
+* Title
+- Marten Lienen
+- Master's thesis work
+- <Title>
+- Others have tried before but with fewer gestures and different methods like
+  hand-designed features or spiking neural networks
+- We use RNNs
+- DVS
+* Comparison
+- histogram is the usual visualization
+- 3 channel color image
+- histogram has no color information and mostly captures edges and noise
+* Event Stream
+- stream of events in continuous time
+- Event description
+  - 10microsecond timestamp
+  - x, y coordinates on 128x128 pixel field of view
+  - polarity is sign of gradient of light intensity
+- Histogram is sum of polarities over short timeframe, here 1/30th of a second
+- 3 main difficulties
+  - stream of events in continuous time
+  - very long sequences, up to 100keps
+  - little information content in each sequence item, lots of noise, noise rate
+    of 8keps
+* Dataset
+- We use Deep Learning so we need training data
+- Describe dataset
+* Preprocessing
+- We transformed the data to simplify learning
+- Explain transformations and points of reference
+* NNs
+- function approximator by composing/nesting simple building block functions
+- prototypical example of a neural network
+  - input x, output y
+  - 3 hidden layers (intermediate steps)
+  - non-linearities and trainable weight matrices W
+* AEs
+- Undercomplete AE
+- Explain all parts and code vector
+- AE performs non-linear PCA, so to speak
+* RNNs
+- NNs map vectors to vectors but we work with sequences
+- Add recurrent connections between hidden layers to get temporal context
+- Explain simple formula
+- Though we use Gated Recurrent Units
+* RAEs
+- Combine previous two ideas to get to RAEs
+- First read complete input sequence
+- e_n has to capture the complete sequence so that decoder can decode
+- decoder produces original inputs, though we use mixture density networks and
+  maximize log-likelihood of input sequence
+* Event Sequence Compression
+- Why do we need RAEs? Recall the three main challenges in event streams!
+- Map time-windows of 2.5ms to one code vector
+- This leads to
+  - discrete-time sequence. RNNs like discrete-time.
+  - Shorter sequences
+  - Also each code vector is much richer in information than an event
+- Event rate is just illustrative, otherwise we would see a blue bar here (up to
+  100keps)
+* Learned Representations
+- Did we learn anything? Yes.
+- t-SNE plot, axis are meaningless, only distance counts
+- colored by number of events
+- It seems to be a major thing in our manifold of representations
+- But there are more learned features because there is more structure here,
+  though we did not identify any as clearly as the #events
+* Framewise Classification
+- After all the preparation work, we are finally ready to do some classification
+* HMM Decoding
+- Explain what a Markov model is
+- Viterbi decoding to recover most likely sequence of hidden states (here
+  gestures + blank)
+- Lots of spurious labels because (1st order) HMMs cannot keep track of history
+- But HMMs seems to able to distinguish well between blank and any-gesture
+* HMM Segmentation
+- So we split it into a 2-step process
+- Segment with 2-state HMM
+- Filter segments shorter than half a second because that is unphysical
+- Assign segment labels with 17-state HMM but without transitions
+* Predictions
+- Example output of system
+- Explain Levenshtein distance
+* Results
+- Explain how confusion matrix is created from Levenshtein distance operations
+- Mix ups with <blank> happen when a single segment is recognized as two
+  segments with a very short break in between
+- Overall validation performance is Mean Levenshtein distance 2.0 or LER 0.125
+- To return to the question from the beginning: Can we use RNNs for gesture
+  recognition with a neuromorphic vision sensor? The answer is yes.
+- <Thank you>-slide
