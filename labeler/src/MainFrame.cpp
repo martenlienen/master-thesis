@@ -97,8 +97,7 @@ MainFrame::MainFrame() : wxFrame(NULL, wxID_ANY, "Label Stuff!") {
                  auto events_path = dir / "events.csv";
                  auto frames_path = dir / "frames";
 
-                 if (!(boost::filesystem::is_regular_file(events_path) &&
-                       boost::filesystem::is_directory(frames_path))) {
+                 if (!(boost::filesystem::is_regular_file(events_path))) {
                    auto msg_dlg = new wxMessageDialog(
                        this, "This directory does not contain a recording",
                        "Message", wxOK);
